@@ -123,7 +123,9 @@ public class GameSelector extends JFrame {
             game.setPlayers(me, opponent);
 
             System.out.println("DEBUG: Opening JFrame for player '" + me.getName() + "' vs opponent '" + opponent.getName() + "'");
-            setupBoard();
+
+            String gameType = extractValue(message, "GAMETYPE");
+            setupBoard(gameType);
         }
 
         else if (message.startsWith("SVR GAME MOVE")) {
@@ -161,9 +163,9 @@ public class GameSelector extends JFrame {
         return msg.substring(start, end);
     }
 
-    private void setupBoard() {
-        gameFrame = new JFrame("TicTacToe: " + me.getName() + " vs " + opponent.getName());
-        gameFrame.setSize(400, 450); 
+    private void setupBoard(String gameType) {
+        gameFrame = new JFrame(gameType + ": " + me.getName() + " vs " + opponent.getName());
+        gameFrame.setSize(400, 450);
         gameFrame.setLayout(new BorderLayout());
         gameFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
@@ -171,21 +173,51 @@ public class GameSelector extends JFrame {
         turnLabel.setFont(new Font("Arial", Font.BOLD, 16));
         gameFrame.add(turnLabel, BorderLayout.NORTH);
 
-        JPanel boardPanel = new JPanel(new GridLayout(3, 3));
-        buttons = new JButton[3][3];
-        for (int r = 0; r < 3; r++) {
-            for (int c = 0; c < 3; c++) {
+        JPanel boardPanel;
+        int rows, cols;
+
+        switch (gameType.toLowerCase()) {
+            case "tic-tac-toe":
+                rows = cols = 4;
+                break;
+            case "connect4":
+                rows = 6;
+                cols = 7;
+                break;
+            case "battleship":
+                rows = cols = 10;
+                break;
+            default:
+                JOptionPane.showMessageDialog(this,
+                        "Het spel '" + gameType + "' wordt nog niet ondersteund.");
+                return;
+        }
+
+        boardPanel = new JPanel(new GridLayout(rows, cols));
+        buttons = new JButton[rows][cols];
+
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
                 JButton btn = new JButton("");
                 buttons[r][c] = btn;
                 int row = r, col = c;
+
                 btn.addActionListener(e -> {
-                    if (currentPlayer == me && game.isCellEmpty(row, col)) {
+                    if (currentPlayer == me) {
                         try {
-                            client.sendMove(row * 3 + col);
-                            game.makeMove(me, row, col);
-                            btn.setText(me.getMark());
-                            currentPlayer = opponent;
-                            updateTurnLabel();
+                            if (gameType.equalsIgnoreCase("tic-tac-toe")) {
+                                if (game.isCellEmpty(row, col)) {
+                                    client.sendMove(row * cols + col);
+                                    game.makeMove(me, row, col);
+                                    btn.setText(me.getMark());
+                                    currentPlayer = opponent;
+                                    updateTurnLabel();
+                                }
+                            } else if (gameType.equalsIgnoreCase("connect4")) {
+                                System.out.println("Niet beschikbaar");
+                            } else if (gameType.equalsIgnoreCase("battleship")) {
+                                System.out.println("Niet beschikbaar");
+                            }
                         } catch (Exception ex) {
                             JOptionPane.showMessageDialog(gameFrame,
                                     "Fout bij verzenden van zet: " + ex.getMessage());
