@@ -1,102 +1,95 @@
 package nl.isy_games;
 
-public class TicTacToeGame extends BoardGame {
-    private final String[][] board;
-    private final int SIZE = 3;
-    private Player playerX;
-    private Player playerO;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
-    public TicTacToeGame() {
-        board = new String[SIZE][SIZE];
-        for (int i = 0; i < SIZE; i++) {
-            for (int j = 0; j < SIZE; j++) {
-                board[i][j] = " ";
+public class TicTacToeGame extends JFrame {
+
+    private final GameClient client;
+    private final JButton[][] buttons = new JButton[3][3];
+    private boolean myTurn = false;  
+    private String myMark;          
+    private String opponentMark;
+
+    public TicTacToeGame(GameClient client) {
+        this.client = client;
+
+        setTitle("TicTacToe - Match");
+        setSize(400, 400);
+        setLayout(new GridLayout(3, 3));
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        initBoard();
+    }
+
+    private void initBoard() {
+        for (int r = 0; r < 3; r++) {
+            for (int c = 0; c < 3; c++) {
+                JButton button = new JButton("");
+                button.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 60));
+                buttons[r][c] = button;
+
+                int row = r;
+                int col = c;
+
+                button.addActionListener(e -> {
+                    if (myTurn && button.getText().isEmpty()) {
+                        makeMove(row, col);
+                    }
+                });
+
+                add(button);
             }
         }
     }
 
-    @Override
-    public boolean makeMove(Player player, int row, int col) {
-        if (row < 0 || row >= SIZE || col < 0 || col >= SIZE) {
-            return false;
-        }
+    private void makeMove(int row, int col) {
+        buttons[row][col].setText(myMark);
+        buttons[row][col].setEnabled(false);
 
-        if (!board[row][col].equals(" ")) {
-            return false;
-        }
+        int moveIndex = row * 3 + col;
+        client.sendMove(moveIndex);
 
-        board[row][col] = player.getMark();
-        return true;
+        myTurn = false;
     }
 
-
-    @Override
-    public boolean isGameOver() {
-        if (getWinner() != null) {
-            return true;
-        }
-
-        for (int i = 0; i < SIZE; i++) {
-            for (int j = 0; j < SIZE; j++) {
-                if (board[i][j].equals(" ")) {
-                    return false;
-                }
-            }
-        }
-        return true;
+    public void enablePlayerTurn() {
+        myTurn = true;
     }
 
-    public void setPlayers(Player p1, Player p2) {
-        if (p1.getMark().equals("X")) {
-            playerX = p1;
-            playerO = p2;
-        } else {
-            playerX = p2;
-            playerO = p1;
+    public void updateBoardFromServer(String message) {
+        String moveStr = parseValue(message, "MOVE");
+        String player = parseValue(message, "PLAYER");
+
+        if (moveStr != null && player != null && !player.equalsIgnoreCase(client.getPlayerName())) {
+            int move = Integer.parseInt(moveStr);
+            int row = move / 3;
+            int col = move % 3;
+            buttons[row][col].setText(opponentMark);
+            buttons[row][col].setEnabled(false);
+            myTurn = true;  
         }
     }
 
-    @Override
-    public Player getWinner() {
-        for (int i = 0; i < SIZE; i++) {
-            if (!board[i][0].equals(" ") &&
-                    board[i][0].equals(board[i][1]) &&
-                    board[i][1].equals(board[i][2])) {
-                return board[i][0].equals("X") ? playerX : playerO;
-            }
-        }
-
-        for (int i = 0; i < SIZE; i++) {
-            if (!board[0][i].equals(" ") &&
-                    board[0][i].equals(board[1][i]) &&
-                    board[1][i].equals(board[2][i])) {
-                return board[0][i].equals("X") ? playerX : playerO;
-            }
-        }
-
-        if (!board[0][0].equals(" ") &&
-                board[0][0].equals(board[1][1]) &&
-                board[1][1].equals(board[2][2])) {
-            return board[0][0].equals("X") ? playerX : playerO;
-        }
-
-        if (!board[0][2].equals(" ") &&
-                board[0][2].equals(board[1][1]) &&
-                board[1][1].equals(board[2][0])) {
-            return board[0][2].equals("X") ? playerX : playerO;
-        }
-
-        return null;
+    public void setMarks(String myMark) {
+        this.myMark = myMark;
+        this.opponentMark = myMark.equals("X") ? "O" : "X";
     }
 
-    @Override
-    public void printBoard() {
-        for (int i = 0; i < SIZE; i++) {
-            System.out.println("| " + String.join(" | ", board[i]) + " |");
+    private String parseValue(String message, String key) {
+        try {
+            int start = message.indexOf(key + ": \"");
+            if (start < 0) return null;
+            start += key.length() + 3;
+            int end = message.indexOf("\"", start);
+            if (end < 0) return null;
+            return message.substring(start, end);
+        } catch (Exception e) {
+            return null;
         }
-    }
-
-    public boolean isCellEmpty(int row, int col) {
-        return board[row][col].equals(" ");
     }
 }
+

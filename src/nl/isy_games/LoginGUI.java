@@ -55,7 +55,7 @@ public class LoginGUI extends JFrame {
             loggedIn = true;
             statusLabel.setText("Status: Ingelogd als " + playerName);
 
-            Timer timer = new Timer(3000, e -> updateOnlineList());
+            Timer timer = new Timer(2000, e -> updateOnlineList());
             timer.start();
 
             SwingUtilities.invokeLater(() -> new GameSelector(client));
