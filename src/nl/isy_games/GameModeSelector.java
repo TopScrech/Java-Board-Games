@@ -3,16 +3,20 @@ package classes;
 import javax.swing.*;
 import java.awt.*;
 import java.util.List;
-import java.io.IOException;
 
 public class GameModeSelector extends JFrame {
 
     private final GameClient client;
     private final String gameName;
-    private boolean matchInProgress = false;
     private JLabel statusLabel;
 
-    public GameModeSelector(GameClient client, String gameName, GameSelector gameSelector) {
+    private enum MatchMode { NONE, RANDOM, FIND_PLAYER }
+    private MatchMode currentMode = MatchMode.NONE;
+    private TicTacToeGame board = null;
+    private String currentOpponent = null;
+    private final java.util.Set<Integer> handledChallenges = new java.util.HashSet<>(); // track handled challenges
+
+    public GameModeSelector(GameClient client, String gameName) {
         this.client = client;
         this.gameName = gameName;
 
@@ -36,14 +40,68 @@ public class GameModeSelector extends JFrame {
         vsPlayerBtn.addActionListener(e -> showRandomOrFindMenu());
         vsAIBtn.addActionListener(e -> startAIMode());
 
+        setupServerListener();
+
         setVisible(true);
     }
 
     private void startAIMode() {
-        TicTacToeGame board = new TicTacToeGame(null);
+        board = new TicTacToeGame(null);
         board.setAIMode(true);
         board.setVisible(true);
         dispose();
+    }
+
+    private void setupServerListener() {
+        client.addServerListener(message -> {
+            if (message.contains("SVR GAME CHALLENGE")) {
+                String challenger = parseValue(message, "CHALLENGER");
+                String challengeNumberStr = parseValue(message, "CHALLENGENUMBER");
+                if (challenger == null || challengeNumberStr == null) return;
+
+                int challengeNumber = Integer.parseInt(challengeNumberStr);
+                if (handledChallenges.contains(challengeNumber)) return;
+                handledChallenges.add(challengeNumber);
+
+                if (currentMode == MatchMode.RANDOM) {
+                    System.out.println("DEBUG: Random mode auto-accept challenge from " + challenger);
+                    client.acceptChallenge(challengeNumber);
+                    return;
+                }
+
+                if (currentMode == MatchMode.FIND_PLAYER) {
+                    SwingUtilities.invokeLater(() -> {
+                        int response = JOptionPane.showConfirmDialog(
+                                this,
+                                challenger + " has challenged you to " + gameName + ". Accept?",
+                                "Incoming Challenge",
+                                JOptionPane.YES_NO_OPTION
+                        );
+                        if (response == JOptionPane.YES_OPTION) {
+                            client.acceptChallenge(challengeNumber);
+                            statusLabel.setText("Accepted challenge from " + challenger);
+                        } else {
+                            client.denyChallenge(challengeNumber);
+                            statusLabel.setText("Denied challenge from " + challenger);
+                        }
+                    });
+                }
+            }
+
+            if (message.contains("SVR GAME MATCH")) {
+                String opponent = parseValue(message, "OPPONENT");
+                SwingUtilities.invokeLater(() -> {
+                    if (board == null || !board.isDisplayable()) {
+                        board = new TicTacToeGame(client);
+                        board.setVisible(true);
+                        statusLabel.setText("Match started with " + opponent);
+                        dispose();
+                    } else {
+                        System.out.println("DEBUG: Board already open, skipping duplicate.");
+                    }
+                });
+            }
+        });
     }
 
     private void showRandomOrFindMenu() {
@@ -63,97 +121,77 @@ public class GameModeSelector extends JFrame {
 
         randomBtn.addActionListener(e -> {
             selectFrame.dispose();
-            try {
-                startPvPRandom(gameName);
-            } catch (Exception ex) {
-                ex.printStackTrace();
-                JOptionPane.showMessageDialog(this,
-                        "Error starting Random PvP: " + ex.getMessage(),
-                        "Error", JOptionPane.ERROR_MESSAGE);
-            }
+            startPvPRandom();
         });
 
         findBtn.addActionListener(e -> {
             selectFrame.dispose();
-            boolean validInput = false;
-
-            while (!validInput) {
-                String opponentName = JOptionPane.showInputDialog(this, "Enter opponent name:");
-                if (opponentName == null) {
-                    validInput = true;
-                    break;
-                }
-                opponentName = opponentName.trim();
-                if (opponentName.isEmpty()) {
-                    JOptionPane.showMessageDialog(this, "Please enter a valid name.",
-                            "Invalid Input", JOptionPane.WARNING_MESSAGE);
-                    continue;
-                }
-
-                try {
-                    List<String> players = client.getPlayerList();
-                    if (players.contains(opponentName)) {
-                        System.out.println("DEBUG: Found opponent: " + opponentName);
-                        MatchHandler.sendChallenge(client, opponentName, gameName);
-                        validInput = true;
-                    } else {
-                        JOptionPane.showMessageDialog(this,
-                                "No player found with that name. Try again.",
-                                "Player Not Found", JOptionPane.INFORMATION_MESSAGE);
-                    }
-                } catch (IOException ex) {
-                    ex.printStackTrace();
-                    JOptionPane.showMessageDialog(this,
-                            "Error fetching player list: " + ex.getMessage(),
-                            "Error", JOptionPane.ERROR_MESSAGE);
-                    validInput = true;
-                }
-            }
+            startPvPFindPlayer();
         });
     }
 
-    public void startPvPRandom(String gameName) {
-        if (matchInProgress) {
-            JOptionPane.showMessageDialog(this,
-                    "You are already in a match.",
-                    "Info", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
+    private void startPvPRandom() {
+        currentMode = MatchMode.RANDOM;
+        statusLabel.setText("Searching for random opponent...");
+        client.subscribe(gameName);
 
-        matchInProgress = true;
-        System.out.println("DEBUG: Starting Random PvP matchmaking for " + gameName);
+        new Thread(() -> {
+            try {
+                boolean challengeSent = false;
+                while (!challengeSent) {
+                    List<String> players = client.getPlayerList();
+                    for (String p : players) {
+                        if (!p.equalsIgnoreCase(client.getPlayerName())) {
+                            // Only send challenge if our name is lexicographically smaller
+                            if (client.getPlayerName().compareToIgnoreCase(p) < 0) {
+                                System.out.println("DEBUG: Found random opponent: " + p + ", sending challenge");
+                                client.challenge(p, gameName);
+                            } else {
+                                System.out.println("DEBUG: Found random opponent: " + p + ", waiting for their challenge");
+                            }
+                            challengeSent = true; // stop the loop
+                            break;
+                        }
+                    }
+                    Thread.sleep(1000);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
 
-        if (statusLabel != null) {
-            statusLabel.setText("Searching for random opponent...");
-        }
+
+    private void startPvPFindPlayer() {
+        currentMode = MatchMode.FIND_PLAYER;
+        String opponentName = JOptionPane.showInputDialog(this, "Enter player name:");
+        if (opponentName == null || opponentName.isEmpty()) return;
 
         try {
-            System.out.println("DEBUG: Subscribing for Random PvP: " + gameName);
-            client.subscribe(gameName);
-            System.out.println("DEBUG: Subscribed to " + gameName);
+            List<String> players = client.getPlayerList();
+            if (!players.contains(opponentName)) {
+                JOptionPane.showMessageDialog(this, "No player found.");
+                showRandomOrFindMenu();
+                return;
+            }
 
-            new Thread(() -> MatchHandler.startRandomMatchmaking(client, gameName, this)).start();
+            client.challenge(opponentName, gameName);
+            statusLabel.setText("Invite sent to " + opponentName);
 
         } catch (Exception e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error subscribing: " + e.getMessage(),
-                    "Error", JOptionPane.ERROR_MESSAGE);
-            matchInProgress = false;
-            if (statusLabel != null) statusLabel.setText(" ");
         }
     }
 
-    public boolean isMatchInProgress() {
-        return matchInProgress;
-    }
-
-    public void setMatchInProgress(boolean inProgress) {
-        this.matchInProgress = inProgress;
-    }
-
-    public void setStatusLabelText(String text) {
-        if (statusLabel != null) {
-            statusLabel.setText(text);
+    private String parseValue(String message, String key) {
+        try {
+            int idx = message.indexOf(key + ":");
+            if (idx < 0) return null;
+            int start = message.indexOf("\"", idx) + 1;
+            int end = message.indexOf("\"", start);
+            return message.substring(start, end);
+        } catch (Exception e) {
+            return null;
         }
     }
 }
