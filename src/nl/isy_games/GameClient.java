@@ -13,6 +13,7 @@ public class GameClient {
     private String playerName;
 
     private ServerListener serverListener;
+    private Thread listenerThread;
 
     public GameClient(String host, int port, String playerName) throws IOException {
         this.socket = new Socket(host, port);
@@ -26,6 +27,21 @@ public class GameClient {
         this.serverListener = listener;
     }
 
+    public void startListening() {
+        listenerThread = new Thread(() -> {
+            try {
+                String message;
+                while ((message = in.readLine()) != null) {
+                    System.out.println("DEBUG Server message: " + message);
+                    if (serverListener != null) serverListener.handleMessage(message);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        listenerThread.start();
+    }
+
     public void login() throws IOException {
         send("login " + playerName);
         String response;
@@ -35,7 +51,6 @@ public class GameClient {
                 System.out.println("DEBUG: Login geslaagd");
                 return;
             } else if (response.startsWith("ERR")) {
-                System.out.println("DEBUG: Login mislukt");
                 throw new IOException("Login failed: " + response);
             }
         }
@@ -57,22 +72,19 @@ public class GameClient {
         System.out.println("DEBUG: Match opgegeven");
     }
 
-    public void listen() throws IOException {
-        String message;
-        while ((message = in.readLine()) != null) {
-            System.out.println("DEBUG Server message: " + message);
-            if (serverListener != null) serverListener.handleMessage(message);
+    public void logout() {
+        send("logout");
+        try {
+            socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
     public List<String> getPlayerList() throws IOException {
         send("get playerlist");
-        System.out.println("DEBUG: get playerlist verzonden");
-
         String ok = in.readLine();
-        System.out.println("DEBUG: playerlist OK response: " + ok);
         String listLine = in.readLine();
-        System.out.println("DEBUG: playerlist data: " + listLine);
 
         List<String> players = new ArrayList<>();
         if (listLine != null && listLine.startsWith("SVR PLAYERLIST")) {
@@ -81,26 +93,19 @@ public class GameClient {
             if (start >= 0 && end > start) {
                 String list = listLine.substring(start + 1, end);
                 String[] names = list.replaceAll("\"", "").split(",");
-                for (String name : names) if (!name.trim().isEmpty()) players.add(name.trim());
+                for (String name : names)
+                    if (!name.trim().isEmpty())
+                        players.add(name.trim());
             }
         }
-
-        System.out.println("DEBUG: Parsed players: " + players);
         return players;
     }
 
     public List<String> getGameList() throws IOException {
         send("get gamelist");
-        System.out.println("DEBUG: get gamelist verzonden");
-
         String ok = in.readLine();
-        System.out.println("DEBUG: gamelist OK response: " + ok);
-        if (ok == null || !ok.startsWith("OK")) {
-            throw new IOException("Kon gamelist niet ophalen, server antwoordde: " + ok);
-        }
-
         String listLine = in.readLine();
-        System.out.println("DEBUG: gamelist data: " + listLine);
+
         if (listLine == null || !listLine.startsWith("SVR GAMELIST")) {
             throw new IOException("Ongeldig gamelist response van server: " + listLine);
         }
@@ -116,21 +121,12 @@ public class GameClient {
                 if (!game.isEmpty()) games.add(game);
             }
         }
-
-        System.out.println("DEBUG: Parsed games: " + games);
         return games;
     }
-
 
     private void send(String msg) {
         out.println(msg);
         System.out.println("DEBUG Sent: " + msg);
-    }
-
-    public void close() throws IOException {
-        send("logout");
-        socket.close();
-        System.out.println("DEBUG: Verbinding gesloten");
     }
 
     public String getPlayerName() {
@@ -139,5 +135,25 @@ public class GameClient {
 
     public interface ServerListener {
         void handleMessage(String message);
+    }
+
+    public void listen() throws IOException {
+        String message;
+        while ((message = in.readLine()) != null) {
+            System.out.println("DEBUG Server message: " + message);
+            if (serverListener != null) {
+                serverListener.handleMessage(message);
+            }
+        }
+    }
+
+    public void challenge(String opponent, String gameType) {
+        send("challenge \"" + opponent + "\" \"" + gameType + "\"");
+        System.out.println("DEBUG: Challenge sent to " + opponent + " for game " + gameType);
+    }
+
+    public void acceptChallenge(int challengeNumber) {
+        send("challenge accept " + challengeNumber);
+        System.out.println("DEBUG: Challenge accepted #" + challengeNumber);
     }
 }
