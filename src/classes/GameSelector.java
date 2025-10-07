@@ -3,15 +3,15 @@ package classes;
 import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 public class GameSelector extends JFrame {
 
     private final GameClient client;
+    private JPanel gamePanel;
     private JLabel statusLabel;
-    private boolean inMatch = false;
 
+    private boolean matchInProgress = false;
     private TicTacToeGame board;
 
     public GameSelector(GameClient client) {
@@ -21,130 +21,169 @@ public class GameSelector extends JFrame {
         setSize(400, 300);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        setLayout(new GridLayout(0, 1, 10, 10));
+        setLayout(new BorderLayout());
 
         JLabel label = new JLabel("Kies een spel:", SwingConstants.CENTER);
-        add(label);
+        label.setFont(new Font("Arial", Font.BOLD, 16));
+        add(label, BorderLayout.NORTH);
 
-        try {
-            List<String> games = client.getGameList();
-            for (String gameName : games) {
-                JButton button = new JButton(gameName);
-                add(button);
-                button.addActionListener(e -> subscribeGame(gameName));
-            }
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(this,
-                    "Kon geen gamelist ophalen: " + e.getMessage());
-        }
+        gamePanel = new JPanel();
+        gamePanel.setLayout(new GridLayout(0, 1, 10, 10));
+        JScrollPane scrollPane = new JScrollPane(gamePanel);
+        add(scrollPane, BorderLayout.CENTER);
 
-        client.setServerListener(this::handleServerMessage);
+        statusLabel = new JLabel(" ", SwingConstants.CENTER);
+        statusLabel.setFont(new Font("Arial", Font.ITALIC, 14));
+        add(statusLabel, BorderLayout.SOUTH);
 
-        new Thread(() -> {
-            try {
-                client.listen(); 
-            } catch (IOException ex) {
-                SwingUtilities.invokeLater(() ->
-                        JOptionPane.showMessageDialog(this,
-                                "Fout bij luisteren naar server: " + ex.getMessage()));
-            }
-        }).start();
+        loadGames();
 
         setVisible(true);
     }
 
-    private void subscribeGame(String gameName) {
+    private void loadGames() {
+        try {
+            List<String> games = client.getGameList();
+            for (String gameName : games) {
+                JButton button = new JButton(gameName);
+                button.setFont(new Font("Arial", Font.PLAIN, 14));
+                button.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+                // Click handler
+                button.addActionListener(e -> handleGameSelection(gameName));
+
+                gamePanel.add(button);
+            }
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this,
+                    "Kon geen gamelist ophalen: " + e.getMessage(),
+                    "Fout", JOptionPane.ERROR_MESSAGE);
+        }
+
+        gamePanel.revalidate();
+        gamePanel.repaint();
+    }
+
+    private void handleGameSelection(String gameName) {
         if (!gameName.equalsIgnoreCase("tic-tac-toe")) {
             JOptionPane.showMessageDialog(this,
-                    "Het spel '" + gameName + "' is nog niet beschikbaar.");
+                    gameName + " is nog niet beschikbaar.",
+                    "Game niet beschikbaar",
+                    JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
-        try {
-            client.subscribe("tic-tac-toe");
-            System.out.println("DEBUG: Subscribed to " + gameName);
+        if (matchInProgress) {
+            JOptionPane.showMessageDialog(this,
+                    "Je zit al in een match.",
+                    "Info",
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
 
-            if (statusLabel == null) {
-                statusLabel = new JLabel("Ingeschreven voor " + gameName + " - Wachten op tegenstander...",
-                        SwingConstants.CENTER);
-                add(statusLabel);
-                revalidate();
-                repaint();
+        // Non-blocking mode selection frame
+        JFrame modeFrame = new JFrame("Kies modus");
+        modeFrame.setSize(300, 100);
+        modeFrame.setLayout(new FlowLayout());
+        modeFrame.setLocationRelativeTo(this);
+        modeFrame.setAlwaysOnTop(true);
+        modeFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+        JButton playerBtn = new JButton("Spelen tegen speler");
+        JButton aiBtn = new JButton("Spelen tegen AI");
+
+        modeFrame.add(playerBtn);
+        modeFrame.add(aiBtn);
+        modeFrame.setVisible(true);
+
+        playerBtn.addActionListener(e -> {
+            modeFrame.dispose();
+            startPvP(gameName);
+        });
+
+        aiBtn.addActionListener(e -> {
+            modeFrame.dispose();
+            startPvAI(gameName);
+        });
+    }
+
+    private void startPvAI(String gameName) {
+        board = new TicTacToeGame(null);
+        board.setAIMode(true);
+        board.setVisible(true);
+        matchInProgress = true;
+    }
+
+    private void startPvP(String gameName) {
+        statusLabel.setText("Waiting for other player...");
+        matchInProgress = true;
+
+        // Set server listener for automatic matchmaking
+        client.setServerListener(message -> {
+            try {
+                if (message.startsWith("SVR PLAYERLIST")) {
+                    List<String> players = parsePlayerList(message);
+                    for (String p : players) {
+                        if (!p.equalsIgnoreCase(client.getPlayerName())) {
+                            client.challenge(p, gameName);
+                            System.out.println("DEBUG: Automatically challenged " + p);
+                            break;
+                        }
+                    }
+                } else if (message.contains("SVR GAME CHALLENGE")) {
+                    int challengeNumber = Integer.parseInt(parseValue(message, "CHALLENGENUMBER"));
+                    client.acceptChallenge(challengeNumber);
+                    System.out.println("DEBUG: Automatically accepted challenge #" + challengeNumber);
+                } else if (message.contains("SVR GAME MATCH")) {
+                    SwingUtilities.invokeLater(() -> {
+                        String playerToMove = parseValue(message, "PLAYERTOMOVE");
+                        String opponent = parseValue(message, "OPPONENT");
+
+                        board = new TicTacToeGame(client);
+                        board.setVisible(true);
+
+                        if (playerToMove != null && playerToMove.equalsIgnoreCase(client.getPlayerName())) {
+                            board.enablePlayerTurn();
+                        }
+
+                        statusLabel.setText("Match found! Opponent: " + opponent);
+                        System.out.println("DEBUG: Match started with " + opponent + ", first to move: " + playerToMove);
+                    });
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
+        });
 
-        } catch (Exception ex) {
+        try {
+            client.subscribe(gameName);
+            System.out.println("DEBUG: Subscribed to " + gameName + " and waiting for match");
+
+            List<String> players = client.getPlayerList();
+            for (String p : players) {
+                if (!p.equalsIgnoreCase(client.getPlayerName())) {
+                    client.challenge(p, gameName);
+                    System.out.println("DEBUG: Challenged " + p + " after getting player list");
+                    break;
+                }
+            }
+        } catch (IOException ex) {
             JOptionPane.showMessageDialog(this,
                     "Kan niet inschrijven: " + ex.getMessage());
         }
     }
 
-
-    private void handleServerMessage(String message) {
-        System.out.println("DEBUG Server message: " + message);
-
-        SwingUtilities.invokeLater(() -> {
-            if ((message.contains("SVR GAME MATCH") || message.contains("SVR GAME YOURTURN")) && !inMatch) {
-                inMatch = true;
-
-                String playerToMove = parseValue(message, "PLAYERTOMOVE");
-                String opponent = parseValue(message, "OPPONENT");
-
-                if (board == null) {
-                    board = new TicTacToeGame(client);
-                    board.setVisible(true);
-                }
-
-                JFrame matchFrame = new JFrame("Match Info");
-                matchFrame.setSize(300, 100);
-                matchFrame.setLayout(new BorderLayout());
-                matchFrame.setLocationRelativeTo(this);
-                JLabel label = new JLabel("Match gevonden! Je speelt tegen: " + opponent, SwingConstants.CENTER);
-                matchFrame.add(label, BorderLayout.CENTER);
-                matchFrame.setVisible(true);
-
-                new Thread(() -> {
-                    try {
-                        Thread.sleep(6000);
-                    } catch (InterruptedException ignored) {}
-                    SwingUtilities.invokeLater(matchFrame::dispose);
-                }).start();
-
-                if (playerToMove != null && playerToMove.equalsIgnoreCase(client.getPlayerName())) {
-                    board.enablePlayerTurn();
-                }
-
-            } else if (message.contains("SVR GAME YOURTURN")) {
-                if (board != null) board.enablePlayerTurn();
-
-            } else if (message.contains("SVR GAME MOVE")) {
-                if (board != null) board.updateBoardFromServer(message);
-
-            } else if (message.contains("SVR GAME WIN") ||
-                    message.contains("SVR GAME LOSS") ||
-                    message.contains("SVR GAME DRAW")) {
-
-                JFrame endFrame = new JFrame("Match Einde");
-                endFrame.setSize(300, 100);
-                endFrame.setLayout(new BorderLayout());
-                endFrame.setLocationRelativeTo(this);
-                JLabel label = new JLabel("Match afgelopen: " + message, SwingConstants.CENTER);
-                endFrame.add(label, BorderLayout.CENTER);
-                endFrame.setVisible(true);
-
-                inMatch = false;
-                if (board != null) board.dispose();
-                board = null;
-
-                new Thread(() -> {
-                    try {
-                        Thread.sleep(6000);
-                    } catch (InterruptedException ignored) {}
-                    SwingUtilities.invokeLater(endFrame::dispose);
-                }).start();
-            }
-        });
+    private List<String> parsePlayerList(String message) {
+        int start = message.indexOf('[');
+        int end = message.indexOf(']');
+        List<String> players = new java.util.ArrayList<>();
+        if (start >= 0 && end > start) {
+            String list = message.substring(start + 1, end);
+            String[] names = list.replaceAll("\"", "").split(",");
+            for (String name : names) if (!name.trim().isEmpty()) players.add(name.trim());
+        }
+        return players;
     }
-
 
     private String parseValue(String message, String key) {
         try {
