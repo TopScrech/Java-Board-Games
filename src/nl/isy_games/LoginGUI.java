@@ -23,6 +23,7 @@ public class LoginGUI extends JFrame {
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
+        // Top panel: naam en login
         JPanel topPanel = new JPanel(new GridLayout(3, 1));
         nameField = new JTextField();
         loginButton = new JButton("Login");
@@ -33,6 +34,7 @@ public class LoginGUI extends JFrame {
         add(topPanel, BorderLayout.NORTH);
         add(statusLabel, BorderLayout.SOUTH);
 
+        // Online spelerslijst
         onlineListModel = new DefaultListModel<>();
         onlineList = new JList<>(onlineListModel);
         add(new JScrollPane(onlineList), BorderLayout.CENTER);
@@ -55,9 +57,11 @@ public class LoginGUI extends JFrame {
             loggedIn = true;
             statusLabel.setText("Status: Ingelogd als " + playerName);
 
+            // Timer voor online spelerslijst
             Timer timer = new Timer(2000, e -> updateOnlineList());
             timer.start();
 
+            // Open GameSelector
             SwingUtilities.invokeLater(() -> new GameSelector(client));
 
         } catch (IOException ex) {
