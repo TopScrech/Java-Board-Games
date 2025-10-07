@@ -4,6 +4,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
 import java.util.List;
+import java.util.Random;
 
 public class GameSelector extends JFrame {
 
@@ -18,7 +19,7 @@ public class GameSelector extends JFrame {
         this.client = client;
 
         setTitle("Game Selector");
-        setSize(400, 300);
+        setSize(400, 350);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
@@ -49,7 +50,6 @@ public class GameSelector extends JFrame {
                 button.setFont(new Font("Arial", Font.PLAIN, 14));
                 button.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-                // Click handler
                 button.addActionListener(e -> handleGameSelection(gameName));
 
                 gamePanel.add(button);
@@ -81,60 +81,138 @@ public class GameSelector extends JFrame {
             return;
         }
 
-        // Non-blocking mode selection frame
-        JFrame modeFrame = new JFrame("Kies modus");
-        modeFrame.setSize(300, 100);
-        modeFrame.setLayout(new FlowLayout());
-        modeFrame.setLocationRelativeTo(this);
-        modeFrame.setAlwaysOnTop(true);
-        modeFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-
-        JButton playerBtn = new JButton("Spelen tegen speler");
-        JButton aiBtn = new JButton("Spelen tegen AI");
-
-        modeFrame.add(playerBtn);
-        modeFrame.add(aiBtn);
-        modeFrame.setVisible(true);
-
-        playerBtn.addActionListener(e -> {
-            modeFrame.dispose();
-            startPvP(gameName);
-        });
-
-        aiBtn.addActionListener(e -> {
-            modeFrame.dispose();
-            startPvAI(gameName);
-        });
+        new GameModeSelector(client, gameName, this);
     }
 
-    private void startPvAI(String gameName) {
+    public void startPvAI(String gameName) {
         board = new TicTacToeGame(null);
         board.setAIMode(true);
         board.setVisible(true);
         matchInProgress = true;
+        System.out.println("DEBUG: Started AI game for " + gameName);
     }
 
-    private void startPvP(String gameName) {
-        statusLabel.setText("Waiting for other player...");
+    public void startPvPRandom(String gameName) {
+        if (matchInProgress) return;
         matchInProgress = true;
 
-        // Set server listener for automatic matchmaking
-        client.setServerListener(message -> {
+        System.out.println("DEBUG: Starting Random PvP matchmaking for " + gameName);
+        statusLabel.setText("Searching for random opponent...");
+
+        try {
+            System.out.println("DEBUG: Subscribing for Random PvP: " + gameName);
+            client.subscribe(gameName);
+            System.out.println("DEBUG: Subscribed to " + gameName);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Subscribe failed: " + ex.getMessage());
+            matchInProgress = false;
+            return;
+        }
+
+        new Thread(() -> {
             try {
-                if (message.startsWith("SVR PLAYERLIST")) {
-                    List<String> players = parsePlayerList(message);
-                    for (String p : players) {
-                        if (!p.equalsIgnoreCase(client.getPlayerName())) {
-                            client.challenge(p, gameName);
-                            System.out.println("DEBUG: Automatically challenged " + p);
-                            break;
+                client.listen();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }, "ServerListenerThread").start();
+
+        client.setServerListener(message -> {
+            System.out.println("DEBUG: Server message received: " + message);
+
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    if (message.contains("SVR GAME CHALLENGE")) {
+                        int challengeNumber = Integer.parseInt(parseValue(message, "CHALLENGENUMBER"));
+                        String challenger = parseValue(message, "CHALLENGER");
+                        String gametype = parseValue(message, "GAMETYPE");
+
+                        System.out.println("DEBUG: Received challenge #" + challengeNumber + " from " + challenger);
+
+                        try {
+                            client.acceptChallenge(challengeNumber);
+                            System.out.println("DEBUG: Accepting challenge #" + challengeNumber + " from " + challenger);
+                            matchInProgress = false;
+                        } catch (Exception acceptEx) {
+                            System.out.println("ERROR: Failed to accept challenge #" + challengeNumber + ": " + acceptEx.getMessage());
                         }
                     }
-                } else if (message.contains("SVR GAME CHALLENGE")) {
-                    int challengeNumber = Integer.parseInt(parseValue(message, "CHALLENGENUMBER"));
-                    client.acceptChallenge(challengeNumber);
-                    System.out.println("DEBUG: Automatically accepted challenge #" + challengeNumber);
-                } else if (message.contains("SVR GAME MATCH")) {
+
+                    else if (message.contains("SVR GAME MATCH")) {
+                        String playerToMove = parseValue(message, "PLAYERTOMOVE");
+                        String opponent = parseValue(message, "OPPONENT");
+
+                        System.out.println("DEBUG: MATCH CREATED! Opponent: " + opponent + ", first to move: " + playerToMove);
+                        matchInProgress = false;
+
+                        board = new TicTacToeGame(client);
+                        board.setVisible(true);
+
+                        if (playerToMove.equalsIgnoreCase(client.getPlayerName())) {
+                            board.enablePlayerTurn();
+                            System.out.println("DEBUG: It's my turn (" + client.getPlayerName() + ")");
+                        } else {
+                            System.out.println("DEBUG: Waiting for opponent to move...");
+                        }
+
+                        statusLabel.setText("Match found! Opponent: " + opponent);
+                    }
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        });
+
+        new Thread(() -> {
+            try {
+                Thread.sleep(1500);
+
+                List<String> players = client.getPlayerList();
+                players.removeIf(p -> p.equalsIgnoreCase(client.getPlayerName()));
+
+                if (players.isEmpty()) {
+                    System.out.println("DEBUG: No players online yet, waiting...");
+                    return;
+                }
+
+                for (String other : players) {
+                    if (client.getPlayerName().compareToIgnoreCase(other) > 0) {
+                        System.out.println("DEBUG: Skipping challenge to avoid double challenge conflict.");
+                        continue;
+                    }
+
+                    System.out.println("DEBUG: Found possible opponent: " + other);
+                    client.challenge(other, gameName);
+                    System.out.println("DEBUG: Challenge sent to " + other + " for " + gameName);
+                    break;
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }, "MatchmakerThread").start();
+    }
+
+    public void startPvPFindPlayer(String gameName, String opponentName) {
+        try {
+            List<String> players = client.getPlayerList();
+            if (!players.contains(opponentName)) {
+                JOptionPane.showMessageDialog(this,
+                        "No player found with that name.",
+                        "Info",
+                        JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+
+            client.challenge(opponentName, gameName);
+            statusLabel.setText("Challenge sent to " + opponentName + ", waiting for acceptance...");
+            System.out.println("DEBUG: Challenge sent to " + opponentName);
+
+            client.setServerListener(message -> {
+                System.out.println("DEBUG: Server message received: " + message);
+                if (message.contains("SVR GAME MATCH")) {
                     SwingUtilities.invokeLater(() -> {
                         String playerToMove = parseValue(message, "PLAYERTOMOVE");
                         String opponent = parseValue(message, "OPPONENT");
@@ -146,43 +224,15 @@ public class GameSelector extends JFrame {
                             board.enablePlayerTurn();
                         }
 
-                        statusLabel.setText("Match found! Opponent: " + opponent);
+                        statusLabel.setText("Match started with " + opponent);
                         System.out.println("DEBUG: Match started with " + opponent + ", first to move: " + playerToMove);
                     });
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
+            });
 
-        try {
-            client.subscribe(gameName);
-            System.out.println("DEBUG: Subscribed to " + gameName + " and waiting for match");
-
-            List<String> players = client.getPlayerList();
-            for (String p : players) {
-                if (!p.equalsIgnoreCase(client.getPlayerName())) {
-                    client.challenge(p, gameName);
-                    System.out.println("DEBUG: Challenged " + p + " after getting player list");
-                    break;
-                }
-            }
-        } catch (IOException ex) {
-            JOptionPane.showMessageDialog(this,
-                    "Kan niet inschrijven: " + ex.getMessage());
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-    }
-
-    private List<String> parsePlayerList(String message) {
-        int start = message.indexOf('[');
-        int end = message.indexOf(']');
-        List<String> players = new java.util.ArrayList<>();
-        if (start >= 0 && end > start) {
-            String list = message.substring(start + 1, end);
-            String[] names = list.replaceAll("\"", "").split(",");
-            for (String name : names) if (!name.trim().isEmpty()) players.add(name.trim());
-        }
-        return players;
     }
 
     private String parseValue(String message, String key) {
