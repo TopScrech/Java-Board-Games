@@ -8,7 +8,7 @@ public class TicTacToeGame extends JFrame {
     private JButton[][] cells = new JButton[3][3];
     private boolean playerTurn = true;
     private boolean aiMode = false;
-    private GameClient client; // null if AI mode
+    private GameClient client; 
     private boolean gameOver = false;
     private AI aiPlayer;
 
@@ -96,9 +96,9 @@ public class TicTacToeGame extends JFrame {
 
     private void checkGameOver(String playerSymbol) {
         int[][] winCombos = {
-                {0,0,0,1,0,2}, {1,0,1,1,1,2}, {2,0,2,1,2,2}, // rows
-                {0,0,1,0,2,0}, {0,1,1,1,2,1}, {0,2,1,2,2,2}, // columns
-                {0,0,1,1,2,2}, {0,2,1,1,2,0}                 // diagonals
+                {0,0,0,1,0,2}, {1,0,1,1,1,2}, {2,0,2,1,2,2}, 
+                {0,0,1,0,2,0}, {0,1,1,1,2,1}, {0,2,1,2,2,2}, 
+                {0,0,1,1,2,2}, {0,2,1,1,2,0}               
         };
 
         for (int[] combo : winCombos) {
@@ -113,7 +113,6 @@ public class TicTacToeGame extends JFrame {
             }
         }
 
-        // Check draw
         boolean allFilled = true;
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 3; col++) {
