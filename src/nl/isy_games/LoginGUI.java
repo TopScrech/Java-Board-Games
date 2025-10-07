@@ -1,6 +1,7 @@
 package nl.isy_games;
 
 import javax.swing.*;
+import classes.GameSelector;
 import java.awt.*;
 import java.io.IOException;
 import java.util.List;
