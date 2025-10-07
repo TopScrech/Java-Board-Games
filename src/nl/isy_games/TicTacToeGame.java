@@ -1,95 +1,131 @@
-package nl.isy_games;
+package classes;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 
 public class TicTacToeGame extends JFrame {
 
-    private final GameClient client;
-    private final JButton[][] buttons = new JButton[3][3];
-    private boolean myTurn = false;  
-    private String myMark;          
-    private String opponentMark;
+    private JButton[][] cells = new JButton[3][3];
+    private boolean playerTurn = true;
+    private boolean aiMode = false;
+    private GameClient client; // null if AI mode
+    private boolean gameOver = false;
+    private AI aiPlayer;
 
     public TicTacToeGame(GameClient client) {
         this.client = client;
 
-        setTitle("TicTacToe - Match");
-        setSize(400, 400);
+        setTitle("TicTacToe");
+        setSize(300, 300);
         setLayout(new GridLayout(3, 3));
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setLocationRelativeTo(null);
 
-        initBoard();
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                JButton btn = new JButton("");
+                btn.setFont(new Font("Arial", Font.BOLD, 40));
+                final int r = row, c = col;
+                btn.addActionListener(e -> playerMove(r, c));
+                cells[row][col] = btn;
+                add(btn);
+            }
+        }
+
+        setLocationRelativeTo(null);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
     }
 
-    private void initBoard() {
-        for (int r = 0; r < 3; r++) {
-            for (int c = 0; c < 3; c++) {
-                JButton button = new JButton("");
-                button.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 60));
-                buttons[r][c] = button;
+    public void setAIMode(boolean aiMode) {
+        this.aiMode = aiMode;
+        if (aiMode) {
+            aiPlayer = new AI("Computer", "O");
+            enablePlayerTurn();
+        }
+    }
 
-                int row = r;
-                int col = c;
+    public void enablePlayerTurn() {
+        if (!gameOver) playerTurn = true;
+    }
 
-                button.addActionListener(e -> {
-                    if (myTurn && button.getText().isEmpty()) {
-                        makeMove(row, col);
-                    }
-                });
+    private void playerMove(int row, int col) {
+        if (!playerTurn || !isCellEmpty(row, col) || gameOver) return;
 
-                add(button);
+        cells[row][col].setText("X");
+        playerTurn = false;
+
+        checkGameOver("X");
+
+        if (!gameOver) {
+            if (aiMode) {
+                aiMove();
+            } else if (client != null) {
+                int moveIndex = row * 3 + col;
+                client.sendMove(moveIndex);
             }
         }
     }
 
-    private void makeMove(int row, int col) {
-        buttons[row][col].setText(myMark);
-        buttons[row][col].setEnabled(false);
+    private void aiMove() {
+        if (gameOver) return;
 
-        int moveIndex = row * 3 + col;
-        client.sendMove(moveIndex);
+        int[] move = aiPlayer.chooseMove(this);
+        cells[move[0]][move[1]].setText("O");
 
-        myTurn = false;
-    }
-
-    public void enablePlayerTurn() {
-        myTurn = true;
+        checkGameOver("O");
+        playerTurn = true;
     }
 
     public void updateBoardFromServer(String message) {
-        String moveStr = parseValue(message, "MOVE");
-        String player = parseValue(message, "PLAYER");
+        if (gameOver) return;
 
-        if (moveStr != null && player != null && !player.equalsIgnoreCase(client.getPlayerName())) {
+        try {
+            String moveStr = message.split("MOVE:")[1].trim();
             int move = Integer.parseInt(moveStr);
             int row = move / 3;
             int col = move % 3;
-            buttons[row][col].setText(opponentMark);
-            buttons[row][col].setEnabled(false);
-            myTurn = true;  
+            cells[row][col].setText("O");
+            checkGameOver("O");
+            enablePlayerTurn();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
-    public void setMarks(String myMark) {
-        this.myMark = myMark;
-        this.opponentMark = myMark.equals("X") ? "O" : "X";
+    public boolean isCellEmpty(int row, int col) {
+        return cells[row][col].getText().equals("");
     }
 
-    private String parseValue(String message, String key) {
-        try {
-            int start = message.indexOf(key + ": \"");
-            if (start < 0) return null;
-            start += key.length() + 3;
-            int end = message.indexOf("\"", start);
-            if (end < 0) return null;
-            return message.substring(start, end);
-        } catch (Exception e) {
-            return null;
+    private void checkGameOver(String playerSymbol) {
+        int[][] winCombos = {
+                {0,0,0,1,0,2}, {1,0,1,1,1,2}, {2,0,2,1,2,2}, // rows
+                {0,0,1,0,2,0}, {0,1,1,1,2,1}, {0,2,1,2,2,2}, // columns
+                {0,0,1,1,2,2}, {0,2,1,1,2,0}                 // diagonals
+        };
+
+        for (int[] combo : winCombos) {
+            if (cells[combo[0]][combo[1]].getText().equals(playerSymbol) &&
+                    cells[combo[2]][combo[3]].getText().equals(playerSymbol) &&
+                    cells[combo[4]][combo[5]].getText().equals(playerSymbol)) {
+
+                gameOver = true;
+                JOptionPane.showMessageDialog(this,
+                        "Speler " + playerSymbol + " wint!");
+                return;
+            }
+        }
+
+        // Check draw
+        boolean allFilled = true;
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                if (cells[row][col].getText().equals("")) {
+                    allFilled = false;
+                    break;
+                }
+            }
+        }
+        if (allFilled && !gameOver) {
+            gameOver = true;
+            JOptionPane.showMessageDialog(this, "Gelijkspel!");
         }
     }
 }
-
