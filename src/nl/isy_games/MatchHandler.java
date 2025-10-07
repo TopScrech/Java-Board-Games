@@ -1,64 +1,38 @@
 package classes;
 
 import javax.swing.*;
-import java.util.List;
-import java.io.IOException;
 
 public class MatchHandler {
 
-    public static void startRandomMatchmaking(GameClient client, String gameName, GameModeSelector selector) {
-        new Thread(() -> {
-            try {
-                boolean opponentFound = false;
-                final boolean[] boardShown = {false};
+    public static void handleIncomingChallenge(GameClient client) {
+        client.addServerListener(message -> {
+            if (!message.contains("SVR GAME CHALLENGE")) return;
 
-                System.out.println("DEBUG: Subscribing for Random PvP: " + gameName);
-                client.subscribe(gameName);
-                System.out.println("DEBUG: Subscribed to " + gameName);
+            String challenger = parseValue(message, "CHALLENGER");
+            int challengeNumber = Integer.parseInt(parseValue(message, "CHALLENGENUMBER"));
+            String gameType = parseValue(message, "GAMETYPE");
 
-                client.setServerListener(message -> {
-                    System.out.println("DEBUG: Server message received: " + message);
+            // Ignore challenges sent by yourself
+            if (challenger.equalsIgnoreCase(client.getPlayerName())) return;
 
-                    if (message.contains("SVR GAME MATCH") && !boardShown[0]) {
-                        boardShown[0] = true;
-                        SwingUtilities.invokeLater(() -> {
-                            TicTacToeGame board = new TicTacToeGame(client);
-                            board.setVisible(true);
+            SwingUtilities.invokeLater(() -> {
+                int response = JOptionPane.showConfirmDialog(
+                        null,
+                        challenger + " has challenged you to " + gameType + ".\nDo you want to accept?",
+                        "Incoming Challenge",
+                        JOptionPane.YES_NO_OPTION
+                );
 
-                            selector.setMatchInProgress(true);
-                            selector.setStatusLabelText("Match found! Opponent: " + parseValue(message, "OPPONENT"));
-
-                            System.out.println("DEBUG: Match created! Opponent: " + parseValue(message, "OPPONENT"));
-                        });
-                    }
-                });
-
-                while (!opponentFound) {
-                    List<String> players = client.getPlayerList();
-                    System.out.println("DEBUG: Current players for Random PvP: " + players);
-
-                    for (String p : players) {
-                        if (!p.equalsIgnoreCase(client.getPlayerName())) {
-                            System.out.println("DEBUG: Found possible opponent: " + p);
-                            client.challenge(p, gameName);
-                            opponentFound = true;
-                            break;
-                        }
-                    }
-
-                    Thread.sleep(500);
+                if (response == JOptionPane.YES_OPTION) {
+                    client.acceptChallenge(challengeNumber);
+                    System.out.println("DEBUG: Challenge accepted #" + challengeNumber);
+                } else {
+                    client.denyChallenge(challengeNumber);
+                    System.out.println("DEBUG: Challenge denied #" + challengeNumber);
                 }
-
-                while (!boardShown[0]) {
-                    Thread.sleep(500);
-                }
-
-            } catch (IOException | InterruptedException e) {
-                e.printStackTrace();
-            }
-        }).start();
+            });
+        });
     }
-
 
     private static String parseValue(String message, String key) {
         try {
@@ -69,22 +43,6 @@ public class MatchHandler {
             return message.substring(start, end);
         } catch (Exception e) {
             return null;
-        }
-    }
-
-    public static void sendChallenge(GameClient client, String opponentName, String gameName) {
-        try {
-            List<String> players = client.getPlayerList();
-            if (!players.contains(opponentName)) {
-                JOptionPane.showMessageDialog(null, "No player found with that name.");
-                return;
-            }
-
-            System.out.println("DEBUG: Sending challenge to " + opponentName);
-            client.challenge(opponentName, gameName);
-
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 }
