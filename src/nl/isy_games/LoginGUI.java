@@ -14,7 +14,6 @@ public class LoginGUI extends JFrame {
     private JList<String> onlineList;
 
     private GameClient client;
-    private boolean loggedIn = false;
 
     public LoginGUI() {
         setTitle("TicTacToe Login");
@@ -53,29 +52,18 @@ public class LoginGUI extends JFrame {
             client = new GameClient("127.0.0.1", 7789, playerName);
             new Thread(client::startListening).start();
             client.login();
-            loggedIn = true;
             statusLabel.setText("Status: Ingelogd als " + playerName);
 
-            Timer timer = new Timer(2000, e -> updateOnlineList());
-            timer.start();
+            MatchHandler.attach(client);
 
-            SwingUtilities.invokeLater(() -> new GameSelector(client));
+            SwingUtilities.invokeLater(() -> {
+                GameSelector selector = new GameSelector(client);
+                MatchHandler.setParentFrame(client, selector);
+            });
 
         } catch (IOException ex) {
-            loggedIn = false;
             statusLabel.setText("Status: Login mislukt");
             JOptionPane.showMessageDialog(this, "Kan niet verbinden of login mislukt: " + ex.getMessage());
-        }
-    }
-
-    private void updateOnlineList() {
-        if (!loggedIn) return;
-        try {
-            List<String> players = client.getPlayerList();
-            onlineListModel.clear();
-            for (String p : players) onlineListModel.addElement(p);
-        } catch (IOException e) {
-            statusLabel.setText("Status: Kan online lijst niet ophalen");
         }
     }
 
