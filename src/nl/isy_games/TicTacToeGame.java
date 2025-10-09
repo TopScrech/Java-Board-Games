@@ -79,18 +79,14 @@ public class TicTacToeGame extends JFrame {
         cells[row][col].setText("X");
         playerTurn = false;
 
-        if (gameType.equals("tic-tac-toe")) {
-            checkGameOver("X");
-        }
+        if (gameType.equals("tic-tac-toe")) checkGameOver("X");
 
-        if (!gameOver) {
-            if (aiMode) aiMove();
-            else if (client != null) {
-                int moveIndex = row * cols + col;
-                client.sendMove(moveIndex);
-            }
+        if (!gameOver && client != null) {
+            int moveIndex = row * cols + col;
+            client.sendMove(moveIndex);
         }
     }
+
 
     private void aiMove() {
         if (gameOver) return;
@@ -143,6 +139,58 @@ public class TicTacToeGame extends JFrame {
 
     public boolean isCellEmpty(int r, int c) {
         return cells[r][c].getText().isEmpty();
+    }
+
+    public void updateBoardFromServer(String message) {
+        if (client == null) return;
+
+        try {
+            if (message.contains("MOVE")) {
+                if (gameOver) return;
+
+                int moveIdx = message.indexOf("MOVE:");
+                if (moveIdx < 0) return;
+
+                int quoteStart = message.indexOf("\"", moveIdx);
+                int quoteEnd = message.indexOf("\"", quoteStart + 1);
+                if (quoteStart < 0 || quoteEnd < 0) return;
+
+                String moveStr = message.substring(quoteStart + 1, quoteEnd).trim();
+                int moveIndex = Integer.parseInt(moveStr);
+
+                int row = moveIndex / cols;
+                int col = moveIndex % cols;
+
+                if (!isCellEmpty(row, col)) return;
+
+                cells[row][col].setText("O");
+                if (gameType.equals("tic-tac-toe")) checkGameOver("O");
+
+                enablePlayerTurn();
+            }
+            else if (message.contains("WIN") || message.contains("LOSS") || message.contains("DRAW")) {
+                gameOver = true;
+                String comment = parseValue(message, "COMMENT");
+                JOptionPane.showMessageDialog(this, comment != null ? comment : "Game ended");
+            }
+            else if (message.contains("YOURTURN")) {
+                if (!gameOver) playerTurn = true;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String parseValue(String message, String key) {
+        try {
+            int idx = message.indexOf(key + ":");
+            if (idx < 0) return null;
+            int start = message.indexOf("\"", idx) + 1;
+            int end = message.indexOf("\"", start);
+            return message.substring(start, end);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public void enablePlayerTurn() {
