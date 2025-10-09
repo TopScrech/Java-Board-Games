@@ -58,30 +58,45 @@ public class MatchHandler {
 
         Mode mode = modes.getOrDefault(client, Mode.NONE);
 
-        if (mode == Mode.RANDOM) {
-            client.acceptChallenge(challengeNumber);
-            return;
-        }
-
         SwingUtilities.invokeLater(() -> {
-            MainFrame mainFrame = parentFrames.get(client);
-            if (mainFrame == null) return;
+            try {
+                switch (mode) {
+                    case RANDOM:
+                        client.acceptChallenge(challengeNumber);
+                        break;
 
-            int response = JOptionPane.showConfirmDialog(
-                    mainFrame,
-                    challenger + " has challenged you to " + gameType + ". Accept?",
-                    "Incoming Challenge",
-                    JOptionPane.YES_NO_OPTION
-            );
-            if (response == JOptionPane.YES_OPTION) client.acceptChallenge(challengeNumber);
-            else client.denyChallenge(challengeNumber);
+                    case FIND_PLAYER:
+                        MainFrame frame = parentFrames.get(client);
+                        if (frame != null && frame.getCurrentOpponentName() != null &&
+                                frame.getCurrentOpponentName().equalsIgnoreCase(challenger)) {
+                            client.acceptChallenge(challengeNumber);
+                        }
+                        break;
+
+                    default:
+                        MainFrame mainFrame = parentFrames.get(client);
+                        if (mainFrame == null) return;
+
+                        int response = JOptionPane.showConfirmDialog(
+                                mainFrame,
+                                challenger + " has challenged you to " + gameType + ". Accept?",
+                                "Incoming Challenge",
+                                JOptionPane.YES_NO_OPTION
+                        );
+                        if (response == JOptionPane.YES_OPTION) client.acceptChallenge(challengeNumber);
+                        else client.denyChallenge(challengeNumber);
+                        break;
+                }
+            } catch (Exception ex) { ex.printStackTrace(); }
         });
     }
 
     private static void handleMatchStart(GameClient client, String message) {
         String opponent = parseValue(message, "OPPONENT");
-        if (opponent == null) return;
+        String firstPlayer = parseValue(message, "FIRST"); 
+        String gameType = parseValue(message, "GAMETYPE");
 
+        if (opponent == null || gameType == null) return;
         if (Boolean.TRUE.equals(matchStarted.get(client))) return;
         matchStarted.put(client, true);
 
@@ -89,23 +104,26 @@ public class MatchHandler {
             MainFrame mainFrame = parentFrames.get(client);
             if (mainFrame == null) return;
 
-            TicTacToeGame newBoard = boards.get(client);
-            if (newBoard != null) return;
+            if (boards.get(client) != null) return;
 
-            // Determine who starts first
-            boolean myTurnFirst = client.getPlayerName().compareToIgnoreCase(opponent) < 0;
+            boolean myTurnFirst = firstPlayer != null
+                    ? client.getPlayerName().equalsIgnoreCase(firstPlayer)
+                    : client.getPlayerName().compareToIgnoreCase(opponent) < 0;
+
             String mySymbol = myTurnFirst ? "X" : "O";
             String opponentSymbol = myTurnFirst ? "O" : "X";
 
-            newBoard = new TicTacToeGame(client, "tic-tac-toe", mySymbol, opponentSymbol, myTurnFirst);
+            TicTacToeGame newBoard = new TicTacToeGame(client, gameType, mySymbol, opponentSymbol, myTurnFirst);
             boards.put(client, newBoard);
 
             mainFrame.getMainPanel().add(newBoard, "currentGame");
             mainFrame.showCard("currentGame");
             mainFrame.setHeaderLabel("Playing vs " + opponent);
+
+            modes.put(client, Mode.NONE);
+            mainFrame.clearCurrentOpponent(); 
         });
     }
-
 
     private static String parseValue(String message, String key) {
         try {
