@@ -5,61 +5,88 @@ import java.awt.*;
 
 public class TicTacToeGame extends JFrame {
 
-    private JButton[][] cells = new JButton[3][3];
+    private JButton[][] cells;
     private boolean playerTurn = true;
     private boolean aiMode = false;
-    private GameClient client; 
     private boolean gameOver = false;
+    private GameClient client;
     private AI aiPlayer;
+    private int rows = 3;
+    private int cols = 3;
+    private String gameType = "tic-tac-toe";
 
     public TicTacToeGame(GameClient client) {
+        this(client, "tic-tac-toe");
+    }
+
+    public TicTacToeGame(GameClient client, String gameType) {
         this.client = client;
+        this.gameType = gameType.toLowerCase();
 
-        setTitle("TicTacToe");
-        setSize(300, 300);
-        setLayout(new GridLayout(3, 3));
+        int[] size = getBoardSize(gameType);
+        this.rows = size[0];
+        this.cols = size[1];
+        this.cells = new JButton[rows][cols];
 
-        for (int row = 0; row < 3; row++) {
-            for (int col = 0; col < 3; col++) {
+        setTitle("Game: " + gameType);
+        setSize(80 * cols, 80 * rows);
+        setLayout(new GridLayout(rows, cols));
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        buildBoard();
+
+        setVisible(true);
+    }
+
+    private int[] getBoardSize(String gameType) {
+        switch (gameType.toLowerCase()) {
+            case "tic-tac-toe":
+                return new int[]{3, 3};
+            case "reversi":
+            case "othello":
+                return new int[]{8, 8};
+            case "connect-four":
+            case "connect4":
+                return new int[]{6, 7};
+            default:
+                System.out.println("Unknown game type: " + gameType + ", defaulting to 3x3");
+                return new int[]{3, 3};
+        }
+    }
+
+    private void buildBoard() {
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
                 JButton btn = new JButton("");
-                btn.setFont(new Font("Arial", Font.BOLD, 40));
-                final int r = row, c = col;
-                btn.addActionListener(e -> playerMove(r, c));
-                cells[row][col] = btn;
+                btn.setFont(new Font("Arial", Font.BOLD, 30));
+                final int row = r, col = c;
+                btn.addActionListener(e -> handleCellClick(row, col));
+                cells[r][c] = btn;
                 add(btn);
             }
         }
-
-        setLocationRelativeTo(null);
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
     }
 
-    public void setAIMode(boolean aiMode) {
-        this.aiMode = aiMode;
-        if (aiMode) {
-            aiPlayer = new AI("Computer", "O");
-            enablePlayerTurn();
+    private void handleCellClick(int row, int col) {
+        if (gameOver || !isCellEmpty(row, col)) return;
+
+        if (!playerTurn) {
+            JOptionPane.showMessageDialog(this, "Not your turn!");
+            return;
         }
-    }
-
-    public void enablePlayerTurn() {
-        if (!gameOver) playerTurn = true;
-        else if (aiMode) playerTurn = true;
-    }
-
-    private void playerMove(int row, int col) {
-        if (!playerTurn || !isCellEmpty(row, col) || gameOver) return;
 
         cells[row][col].setText("X");
         playerTurn = false;
 
-        checkGameOver("X");
+        if (gameType.equals("tic-tac-toe")) {
+            checkGameOver("X");
+        }
 
         if (!gameOver) {
-            if (aiMode) {
-                aiMove();
-            } else if (client != null) {
-                int moveIndex = row * 3 + col;
+            if (aiMode) aiMove();
+            else if (client != null) {
+                int moveIndex = row * cols + col;
                 client.sendMove(moveIndex);
             }
         }
@@ -69,63 +96,64 @@ public class TicTacToeGame extends JFrame {
         if (gameOver) return;
 
         int[] move = aiPlayer.chooseMove(this);
-        cells[move[0]][move[1]].setText("O");
+        if (move == null) return;
 
-        checkGameOver("O");
+        cells[move[0]][move[1]].setText("O");
+        if (gameType.equals("tic-tac-toe")) {
+            checkGameOver("O");
+        }
         playerTurn = true;
     }
 
-    public void updateBoardFromServer(String message) {
-        if (gameOver) return;
+    private void checkGameOver(String symbol) {
+        if (!gameType.equals("tic-tac-toe")) return;
 
-        try {
-            String moveStr = message.split("MOVE:")[1].trim();
-            int move = Integer.parseInt(moveStr);
-            int row = move / 3;
-            int col = move % 3;
-            cells[row][col].setText("O");
-            checkGameOver("O");
-            enablePlayerTurn();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public boolean isCellEmpty(int row, int col) {
-        return cells[row][col].getText().equals("");
-    }
-
-    private void checkGameOver(String playerSymbol) {
         int[][] winCombos = {
-                {0,0,0,1,0,2}, {1,0,1,1,1,2}, {2,0,2,1,2,2}, 
-                {0,0,1,0,2,0}, {0,1,1,1,2,1}, {0,2,1,2,2,2}, 
-                {0,0,1,1,2,2}, {0,2,1,1,2,0}               
+                {0,0,0,1,0,2}, {1,0,1,1,1,2}, {2,0,2,1,2,2},
+                {0,0,1,0,2,0}, {0,1,1,1,2,1}, {0,2,1,2,2,2},
+                {0,0,1,1,2,2}, {0,2,1,1,2,0}
         };
 
         for (int[] combo : winCombos) {
-            if (cells[combo[0]][combo[1]].getText().equals(playerSymbol) &&
-                    cells[combo[2]][combo[3]].getText().equals(playerSymbol) &&
-                    cells[combo[4]][combo[5]].getText().equals(playerSymbol)) {
+            if (cells[combo[0]][combo[1]].getText().equals(symbol) &&
+                    cells[combo[2]][combo[3]].getText().equals(symbol) &&
+                    cells[combo[4]][combo[5]].getText().equals(symbol)) {
 
                 gameOver = true;
-                JOptionPane.showMessageDialog(this,
-                        "Speler " + playerSymbol + " wint!");
+                JOptionPane.showMessageDialog(this, "Player " + symbol + " wins!");
                 return;
             }
         }
 
         boolean allFilled = true;
-        for (int row = 0; row < 3; row++) {
-            for (int col = 0; col < 3; col++) {
-                if (cells[row][col].getText().equals("")) {
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                if (isCellEmpty(r, c)) {
                     allFilled = false;
                     break;
                 }
             }
         }
-        if (allFilled && !gameOver) {
+
+        if (allFilled) {
             gameOver = true;
-            JOptionPane.showMessageDialog(this, "Gelijkspel!");
+            JOptionPane.showMessageDialog(this, "Draw!");
+        }
+    }
+
+    public boolean isCellEmpty(int r, int c) {
+        return cells[r][c].getText().isEmpty();
+    }
+
+    public void enablePlayerTurn() {
+        if (!gameOver) playerTurn = true;
+    }
+
+    public void setAIMode(boolean aiMode) {
+        this.aiMode = aiMode;
+        if (aiMode) {
+            aiPlayer = new AI("Computer", "O");
+            enablePlayerTurn();
         }
     }
 }
