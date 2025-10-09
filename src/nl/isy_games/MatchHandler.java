@@ -13,14 +13,14 @@ public class MatchHandler {
     private static final Map<GameClient, Set<String>> handledMatches = new ConcurrentHashMap<>();
     private static final Map<GameClient, Boolean> matchStarted = new ConcurrentHashMap<>();
     private static final Map<GameClient, TicTacToeGame> boards = new ConcurrentHashMap<>();
-    private static final Map<GameClient, JFrame> parentFrames = new ConcurrentHashMap<>();
+    private static final Map<GameClient, MainFrame> parentFrames = new ConcurrentHashMap<>();
     private static final Set<GameClient> attachedClients = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     public static void setMode(GameClient client, Mode mode) {
         modes.put(client, mode);
     }
 
-    public static void setParentFrame(GameClient client, JFrame frame) {
+    public static void setParentFrame(GameClient client, MainFrame frame) {
         parentFrames.put(client, frame);
     }
 
@@ -30,24 +30,13 @@ public class MatchHandler {
 
         client.addServerListener(message -> {
             try {
-                if (message.contains("SVR GAME CHALLENGE")) {
-                    handleChallenge(client, message);
-                }
-
-                else if (message.contains("SVR GAME MATCH")) {
-                    handleMatchStart(client, message);
-                }
-
+                if (message.contains("SVR GAME CHALLENGE")) handleChallenge(client, message);
+                else if (message.contains("SVR GAME MATCH")) handleMatchStart(client, message);
                 else if (message.contains("SVR GAME YOURTURN") || message.contains("SVR GAME MOVE")) {
                     TicTacToeGame board = boards.get(client);
-                    if (board != null) {
-                        SwingUtilities.invokeLater(() -> board.updateBoardFromServer(message));
-                    }
+                    if (board != null) SwingUtilities.invokeLater(() -> board.updateBoardFromServer(message));
                 }
-
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
+            } catch (Exception ex) { ex.printStackTrace(); }
         });
     }
 
@@ -75,18 +64,17 @@ public class MatchHandler {
         }
 
         SwingUtilities.invokeLater(() -> {
-            JFrame parent = parentFrames.get(client);
+            MainFrame mainFrame = parentFrames.get(client);
+            if (mainFrame == null) return;
+
             int response = JOptionPane.showConfirmDialog(
-                    parent,
+                    mainFrame,
                     challenger + " has challenged you to " + gameType + ". Accept?",
                     "Incoming Challenge",
                     JOptionPane.YES_NO_OPTION
             );
-            if (response == JOptionPane.YES_OPTION) {
-                client.acceptChallenge(challengeNumber);
-            } else {
-                client.denyChallenge(challengeNumber);
-            }
+            if (response == JOptionPane.YES_OPTION) client.acceptChallenge(challengeNumber);
+            else client.denyChallenge(challengeNumber);
         });
     }
 
@@ -94,30 +82,30 @@ public class MatchHandler {
         String opponent = parseValue(message, "OPPONENT");
         if (opponent == null) return;
 
-        handledMatches.computeIfAbsent(client, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()));
-        if (handledMatches.get(client).contains(opponent)) return;
-        handledMatches.get(client).add(opponent);
-
         if (Boolean.TRUE.equals(matchStarted.get(client))) return;
         matchStarted.put(client, true);
 
         SwingUtilities.invokeLater(() -> {
-            TicTacToeGame existing = boards.get(client);
-            if (existing != null && existing.isDisplayable()) return;
+            MainFrame mainFrame = parentFrames.get(client);
+            if (mainFrame == null) return;
 
-            TicTacToeGame newBoard = new TicTacToeGame(client);
-            newBoard.setVisible(true);
+            TicTacToeGame newBoard = boards.get(client);
+            if (newBoard != null) return;
+
+            // Determine who starts first
+            boolean myTurnFirst = client.getPlayerName().compareToIgnoreCase(opponent) < 0;
+            String mySymbol = myTurnFirst ? "X" : "O";
+            String opponentSymbol = myTurnFirst ? "O" : "X";
+
+            newBoard = new TicTacToeGame(client, "tic-tac-toe", mySymbol, opponentSymbol, myTurnFirst);
             boards.put(client, newBoard);
 
-            newBoard.addWindowListener(new java.awt.event.WindowAdapter() {
-                @Override
-                public void windowClosed(java.awt.event.WindowEvent e) {
-                    resetClient(client);
-                    boards.remove(client);
-                }
-            });
+            mainFrame.getMainPanel().add(newBoard, "currentGame");
+            mainFrame.showCard("currentGame");
+            mainFrame.setHeaderLabel("Playing vs " + opponent);
         });
     }
+
 
     private static String parseValue(String message, String key) {
         try {
@@ -126,15 +114,6 @@ public class MatchHandler {
             int start = message.indexOf("\"", idx) + 1;
             int end = message.indexOf("\"", start);
             return message.substring(start, end);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private static void resetClient(GameClient client) {
-        handledChallenges.remove(client);
-        handledMatches.remove(client);
-        matchStarted.put(client, false);
-        modes.put(client, Mode.NONE);
+        } catch (Exception e) { return null; }
     }
 }
