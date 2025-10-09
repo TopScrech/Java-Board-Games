@@ -31,83 +31,91 @@ public class MatchHandler {
         client.addServerListener(message -> {
             try {
                 if (message.contains("SVR GAME CHALLENGE")) {
-                    String challenger = parseValue(message, "CHALLENGER");
-                    String challengeNumberStr = parseValue(message, "CHALLENGENUMBER");
-                    String gameType = parseValue(message, "GAMETYPE");
-
-                    if (challenger == null || challengeNumberStr == null) return;
-                    int challengeNumber;
-                    try { challengeNumber = Integer.parseInt(challengeNumberStr); }
-                    catch (NumberFormatException ex) { return; }
-
-                    handledChallenges.computeIfAbsent(client, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()));
-                    if (handledChallenges.get(client).contains(challengeNumber)) return;
-                    handledChallenges.get(client).add(challengeNumber);
-
-                    if (challenger.equalsIgnoreCase(client.getPlayerName())) return;
-
-                    Mode mode = modes.getOrDefault(client, Mode.NONE);
-
-                    if (mode == Mode.RANDOM) {
-                        System.out.println("DEBUG: Auto-accept random challenge from " + challenger);
-                        client.acceptChallenge(challengeNumber);
-                        return;
-                    }
-
-                    SwingUtilities.invokeLater(() -> {
-                        JFrame parent = parentFrames.getOrDefault(client, null);
-                        int response = JOptionPane.showConfirmDialog(
-                                parent,
-                                challenger + " has challenged you to " + gameType + ". Accept?",
-                                "Incoming Challenge",
-                                JOptionPane.YES_NO_OPTION
-                        );
-                        if (response == JOptionPane.YES_OPTION) {
-                            client.acceptChallenge(challengeNumber);
-                            System.out.println("DEBUG: Challenge accepted #" + challengeNumber);
-                        } else {
-                            client.denyChallenge(challengeNumber);
-                            System.out.println("DEBUG: Challenge denied #" + challengeNumber);
-                        }
-                    });
+                    handleChallenge(client, message);
                 }
 
                 else if (message.contains("SVR GAME MATCH")) {
-                    String opponent = parseValue(message, "OPPONENT");
-                    if (opponent == null) return;
-
-                    handledMatches.computeIfAbsent(client, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()));
-                    if (handledMatches.get(client).contains(opponent)) return;
-                    handledMatches.get(client).add(opponent);
-
-                    if (Boolean.TRUE.equals(matchStarted.get(client))) return;
-                    matchStarted.put(client, true);
-
-                    SwingUtilities.invokeLater(() -> {
-                        TicTacToeGame existing = boards.get(client);
-                        if (existing != null && existing.isDisplayable()) {
-                            System.out.println("DEBUG: Board already open, skipping duplicate.");
-                            return;
-                        }
-
-                        TicTacToeGame newBoard = new TicTacToeGame(client);
-                        newBoard.setVisible(true);
-                        boards.put(client, newBoard);
-                        System.out.println("DEBUG: Match started with " + opponent);
-
-                        newBoard.addWindowListener(new java.awt.event.WindowAdapter() {
-                            @Override
-                            public void windowClosed(java.awt.event.WindowEvent e) {
-                                resetClient(client);
-                                boards.remove(client);
-                                System.out.println("DEBUG: Board closed — state reset.");
-                            }
-                        });
-                    });
+                    handleMatchStart(client, message);
                 }
+
+                else if (message.contains("SVR GAME YOURTURN") || message.contains("SVR GAME MOVE")) {
+                    TicTacToeGame board = boards.get(client);
+                    if (board != null) {
+                        SwingUtilities.invokeLater(() -> board.updateBoardFromServer(message));
+                    }
+                }
+
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
+        });
+    }
+
+    private static void handleChallenge(GameClient client, String message) {
+        String challenger = parseValue(message, "CHALLENGER");
+        String challengeNumberStr = parseValue(message, "CHALLENGENUMBER");
+        String gameType = parseValue(message, "GAMETYPE");
+
+        if (challenger == null || challengeNumberStr == null) return;
+        int challengeNumber;
+        try { challengeNumber = Integer.parseInt(challengeNumberStr); }
+        catch (NumberFormatException ex) { return; }
+
+        handledChallenges.computeIfAbsent(client, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()));
+        if (handledChallenges.get(client).contains(challengeNumber)) return;
+        handledChallenges.get(client).add(challengeNumber);
+
+        if (challenger.equalsIgnoreCase(client.getPlayerName())) return;
+
+        Mode mode = modes.getOrDefault(client, Mode.NONE);
+
+        if (mode == Mode.RANDOM) {
+            client.acceptChallenge(challengeNumber);
+            return;
+        }
+
+        SwingUtilities.invokeLater(() -> {
+            JFrame parent = parentFrames.get(client);
+            int response = JOptionPane.showConfirmDialog(
+                    parent,
+                    challenger + " has challenged you to " + gameType + ". Accept?",
+                    "Incoming Challenge",
+                    JOptionPane.YES_NO_OPTION
+            );
+            if (response == JOptionPane.YES_OPTION) {
+                client.acceptChallenge(challengeNumber);
+            } else {
+                client.denyChallenge(challengeNumber);
+            }
+        });
+    }
+
+    private static void handleMatchStart(GameClient client, String message) {
+        String opponent = parseValue(message, "OPPONENT");
+        if (opponent == null) return;
+
+        handledMatches.computeIfAbsent(client, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()));
+        if (handledMatches.get(client).contains(opponent)) return;
+        handledMatches.get(client).add(opponent);
+
+        if (Boolean.TRUE.equals(matchStarted.get(client))) return;
+        matchStarted.put(client, true);
+
+        SwingUtilities.invokeLater(() -> {
+            TicTacToeGame existing = boards.get(client);
+            if (existing != null && existing.isDisplayable()) return;
+
+            TicTacToeGame newBoard = new TicTacToeGame(client);
+            newBoard.setVisible(true);
+            boards.put(client, newBoard);
+
+            newBoard.addWindowListener(new java.awt.event.WindowAdapter() {
+                @Override
+                public void windowClosed(java.awt.event.WindowEvent e) {
+                    resetClient(client);
+                    boards.remove(client);
+                }
+            });
         });
     }
 
