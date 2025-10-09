@@ -46,7 +46,7 @@ public class MainFrame extends JFrame {
         headerLabel = new JLabel("", SwingConstants.LEFT);
         headerLabel.setForeground(Color.WHITE);
         headerLabel.setFont(new Font("Arial", Font.BOLD, 20));
-        headerLabel.setVisible(false);
+        headerLabel.setVisible(false); 
 
         JButton homeButton = createRoundedButton("Home", new Color(0, 123, 255), Color.WHITE);
         homeButton.setVisible(false);
@@ -88,7 +88,7 @@ public class MainFrame extends JFrame {
     }
 
     private JPanel createLoginPanel() {
-        JPanel panel = new JPanel(new GridBagLayout());
+        JPanel panel = new JPanel(new GridBagLayout()); 
         panel.setBackground(new Color(28, 28, 30));
 
         JPanel loginBox = new JPanel();
@@ -122,7 +122,6 @@ public class MainFrame extends JFrame {
         loginButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         loginBox.add(loginButton);
         loginBox.add(Box.createVerticalStrut(15));
-
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
@@ -162,6 +161,8 @@ public class MainFrame extends JFrame {
         return panel;
     }
 
+
+
     private JPanel createGameSelectorPanel() {
         JPanel panel = new JPanel(new BorderLayout(20, 20));
         panel.setBackground(new Color(28, 28, 30)); // dark background
@@ -183,7 +184,7 @@ public class MainFrame extends JFrame {
                 String iconPath;
                 switch (gameName.toLowerCase()) {
                     case "tic-tac-toe":
-                        bgColor = new Color(191, 50, 159); 
+                        bgColor = new Color(191, 50, 159);
                         iconPath = "/icons/TicTacToe.png";
                         break;
                     case "connect-four":
@@ -264,6 +265,9 @@ public class MainFrame extends JFrame {
         return panel;
     }
 
+
+
+
     private JPanel createGameModePanel(String gameName) {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -321,7 +325,7 @@ public class MainFrame extends JFrame {
         randomBtn.addActionListener(e -> {
             randomBtn.setVisible(false);
             findBtn.setVisible(false);
-            statusLabel.setText("Zoeken naar willekeurige tegenstander...");
+            statusLabel.setText("Searching for a random opponent...");
             MatchHandler.setMode(client, MatchHandler.Mode.RANDOM);
             client.subscribe(gameName);
 
@@ -347,27 +351,45 @@ public class MainFrame extends JFrame {
             }).start();
         });
 
+
         findBtn.addActionListener(e -> {
             randomBtn.setVisible(false);
             findBtn.setVisible(false);
+
             String opponentName = JOptionPane.showInputDialog(this, "Enter player name:");
             if (opponentName == null || opponentName.isEmpty()) return;
 
             try {
                 List<String> players = client.getPlayerList();
                 if (!players.contains(opponentName)) {
-                    JOptionPane.showMessageDialog(this, "Geen speler gevonden.");
+                    JOptionPane.showMessageDialog(this, "Player not found.");
                     return;
                 }
+
                 client.challenge(opponentName, gameName);
-                statusLabel.setText("Uitnodiging verzonden naar " + opponentName);
+                statusLabel.setText("Invitation sent to " + opponentName);
                 MatchHandler.setMode(client, MatchHandler.Mode.FIND_PLAYER);
+                setCurrentOpponentName(opponentName); 
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
         });
 
         return panel;
+    }
+
+    private String currentOpponentName;
+
+    public String getCurrentOpponentName() {
+        return currentOpponentName;
+    }
+
+    public void setCurrentOpponentName(String name) {
+        currentOpponentName = name;
+    }
+
+    public void clearCurrentOpponent() {
+        currentOpponentName = null;
     }
 
     private void startAIMode(String gameName) {
