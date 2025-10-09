@@ -4,16 +4,12 @@ import javax.swing.*;
 import classes.GameSelector;
 import java.awt.*;
 import java.io.IOException;
-import java.util.List;
 
 public class LoginGUI extends JFrame {
 
     private JTextField nameField;
     private JButton loginButton;
     private JLabel statusLabel;
-    private DefaultListModel<String> onlineListModel;
-    private JList<String> onlineList;
-
     private GameClient client;
 
     public LoginGUI() {
@@ -23,23 +19,24 @@ public class LoginGUI extends JFrame {
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
 
-        JPanel topPanel = new JPanel(new GridLayout(3, 1));
-        nameField = new JTextField();
-        loginButton = new JButton("Login");
-        statusLabel = new JLabel("Status: Niet ingelogd");
+        JPanel topPanel = new JPanel(new GridLayout(4, 1, 5, 5));
+        topPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
         topPanel.add(new JLabel("Voer je spelersnaam in:"));
+        nameField = new JTextField();
         topPanel.add(nameField);
+
+        loginButton = new JButton("Login");
         topPanel.add(loginButton);
+
+        statusLabel = new JLabel("Status: Niet ingelogd", SwingConstants.CENTER);
+        topPanel.add(statusLabel);
+
         add(topPanel, BorderLayout.NORTH);
-        add(statusLabel, BorderLayout.SOUTH);
-
-        onlineListModel = new DefaultListModel<>();
-        onlineList = new JList<>(onlineListModel);
-        add(new JScrollPane(onlineList), BorderLayout.CENTER);
-
-        loginButton.addActionListener(e -> login());
 
         setVisible(true);
+
+        loginButton.addActionListener(e -> login());
     }
 
     private void login() {
@@ -55,12 +52,16 @@ public class LoginGUI extends JFrame {
             client.login();
             statusLabel.setText("Status: Ingelogd als " + playerName);
 
+            // Attach MatchHandler globally AFTER login
             MatchHandler.attach(client);
 
+            // Open GameSelector UI
             SwingUtilities.invokeLater(() -> {
                 GameSelector selector = new GameSelector(client);
                 MatchHandler.setParentFrame(client, selector);
             });
+
+            dispose(); // close login window
 
         } catch (IOException ex) {
             statusLabel.setText("Status: Login mislukt");
