@@ -1,31 +1,21 @@
-package nl.isy_games;
+package classes;
 
-import java.util.Random;
+public class AI {
+    private final String name;
+    private final String symbol;
 
-public class AI extends Player {
-    private final Random random;
-
-    public AI(String name, String mark) {
-        super(name, mark);
-        random = new Random();
+    public AI(String name, String symbol) {
+        this.name = name;
+        this.symbol = symbol;
     }
 
-    public int[] chooseMove(BoardGame game) {
-        int row, col;
-        int[] move = new int[2];
-        boolean valid = false;
-
-        while (!valid) {
-            row = random.nextInt(3);
-            col = random.nextInt(3);
-
-            if (((TicTacToeGame) game).isCellEmpty(row, col)) {
-                move[0] = row;
-                move[1] = col;
-                valid = true;
+    public int[] chooseMove(TicTacToeGame board) {
+        // Pick first empty cell (simple AI)
+        for (int r = 0; r < 3; r++) {
+            for (int c = 0; c < 3; c++) {
+                if (board.isCellEmpty(r, c)) return new int[]{r, c};
             }
         }
-
-        return move;
+        return null;
     }
 }
