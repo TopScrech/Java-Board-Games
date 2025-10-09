@@ -3,6 +3,7 @@ package classes;
 import javax.swing.*;
 
 import nl.isy_games.GameClient;
+import nl.isy_games.GameModeSelector;
 import nl.isy_games.TicTacToeGame;
 
 import java.awt.*;

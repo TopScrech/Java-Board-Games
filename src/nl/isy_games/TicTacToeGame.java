@@ -1,4 +1,4 @@
-package classes;
+package nl.isy_games;
 
 import javax.swing.*;
 import java.awt.*;
@@ -44,6 +44,7 @@ public class TicTacToeGame extends JFrame {
 
     public void enablePlayerTurn() {
         if (!gameOver) playerTurn = true;
+        else if (aiMode) playerTurn = true;
     }
 
     private void playerMove(int row, int col) {

@@ -1,4 +1,4 @@
-package classes;
+package nl.isy_games;
 
 import javax.swing.*;
 import java.util.*;
@@ -104,6 +104,15 @@ public class MatchHandler {
                             }
                         });
                     });
+                }
+                else if(message.contains("SVR GAME YOURTURN")){
+                    
+                }
+                else if(message.contains("SVR GAME MOVE")) {
+                    String player = parseValue(message, "PLAYER");
+                    String move = parseValue(message, "MOVE");
+                    String details = parseValue(message, "DETAILS");
+                    System.out.println(player + move + details);
                 }
             } catch (Exception ex) {
                 ex.printStackTrace();
