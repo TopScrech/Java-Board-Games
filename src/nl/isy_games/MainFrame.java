@@ -98,7 +98,7 @@ public class MainFrame extends JFrame {
                 BorderFactory.createLineBorder(new Color(60, 60, 60), 2),
                 BorderFactory.createEmptyBorder(20, 30, 20, 30)
         ));
-        loginBox.setPreferredSize(new Dimension(350, 260));
+        loginBox.setPreferredSize(new Dimension(350, 260)); 
 
         JLabel title = new JLabel("Voer je spelersnaam in:", SwingConstants.CENTER);
         title.setFont(new Font("Arial", Font.BOLD, 18));
@@ -161,11 +161,9 @@ public class MainFrame extends JFrame {
         return panel;
     }
 
-
-
     private JPanel createGameSelectorPanel() {
         JPanel panel = new JPanel(new BorderLayout(20, 20));
-        panel.setBackground(new Color(28, 28, 30)); // dark background
+        panel.setBackground(new Color(28, 28, 30)); 
         panel.setBorder(BorderFactory.createEmptyBorder(20, 40, 40, 40));
 
         JLabel welcomeLabel = new JLabel("Welkom, " + client.getPlayerName() + "!", SwingConstants.CENTER);
@@ -184,7 +182,7 @@ public class MainFrame extends JFrame {
                 String iconPath;
                 switch (gameName.toLowerCase()) {
                     case "tic-tac-toe":
-                        bgColor = new Color(191, 50, 159);
+                        bgColor = new Color(191, 50, 159); 
                         iconPath = "/icons/TicTacToe.png";
                         break;
                     case "connect-four":
@@ -198,11 +196,11 @@ public class MainFrame extends JFrame {
                         iconPath = "/icons/Othello.png";
                         break;
                     case "battleship":
-                        bgColor = new Color(106, 70, 194); 
+                        bgColor = new Color(106, 70, 194);
                         iconPath = "/icons/Battleship.png";
                         break;
                     default:
-                        bgColor = new Color(0, 123, 255); 
+                        bgColor = new Color(0, 123, 255);
                         iconPath = "/icons/TicTacToe.png";
                 }
 
@@ -265,9 +263,6 @@ public class MainFrame extends JFrame {
         return panel;
     }
 
-
-
-
     private JPanel createGameModePanel(String gameName) {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -285,9 +280,9 @@ public class MainFrame extends JFrame {
         buttonsPanel.setBackground(new Color(28, 28, 30));
 
         JButton vsPlayerBtn = createRoundedButton("Spelen tegen speler", new Color(0, 123, 255), Color.WHITE);
-        vsPlayerBtn.setPreferredSize(new Dimension(180, 80)); // slightly bigger
+        vsPlayerBtn.setPreferredSize(new Dimension(180, 80)); 
         JButton vsAIBtn = createRoundedButton("Spelen tegen AI", new Color(255, 193, 7), Color.WHITE);
-        vsAIBtn.setPreferredSize(new Dimension(180, 80)); // slightly bigger
+        vsAIBtn.setPreferredSize(new Dimension(180, 80)); 
 
         buttonsPanel.add(vsPlayerBtn);
         buttonsPanel.add(vsAIBtn);
@@ -298,9 +293,9 @@ public class MainFrame extends JFrame {
         pvpOptionsPanel.setBackground(new Color(28, 28, 30));
 
         JButton randomBtn = createRoundedButton("Random", new Color(0, 123, 255), Color.WHITE);
-        randomBtn.setPreferredSize(new Dimension(140, 60)); // slightly bigger
+        randomBtn.setPreferredSize(new Dimension(140, 60)); 
         JButton findBtn = createRoundedButton("Find Player", new Color(255, 193, 7), Color.WHITE);
-        findBtn.setPreferredSize(new Dimension(140, 60)); // slightly bigger
+        findBtn.setPreferredSize(new Dimension(140, 60)); 
         randomBtn.setVisible(false);
         findBtn.setVisible(false);
 
@@ -374,6 +369,8 @@ public class MainFrame extends JFrame {
                 ex.printStackTrace();
             }
         });
+
+
 
         return panel;
     }
