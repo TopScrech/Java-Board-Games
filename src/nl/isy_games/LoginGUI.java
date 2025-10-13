@@ -57,7 +57,7 @@ public class LoginGUI extends JFrame {
                 GameSelector selector = new GameSelector(client);
             });
 
-            dispose(); 
+            dispose();
 
         } catch (IOException ex) {
             statusLabel.setText("Status: Login mislukt");
