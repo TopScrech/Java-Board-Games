@@ -52,16 +52,13 @@ public class LoginGUI extends JFrame {
             client.login();
             statusLabel.setText("Status: Ingelogd als " + playerName);
 
-            // Attach MatchHandler globally AFTER login
             MatchHandler.attach(client);
 
-            // Open GameSelector UI
             SwingUtilities.invokeLater(() -> {
                 GameSelector selector = new GameSelector(client);
-                MatchHandler.setParentFrame(client, selector);
             });
 
-            dispose(); // close login window
+            dispose(); 
 
         } catch (IOException ex) {
             statusLabel.setText("Status: Login mislukt");

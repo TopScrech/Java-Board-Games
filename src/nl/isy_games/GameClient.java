@@ -28,12 +28,14 @@ public class GameClient {
     }
 
     public void startListening() {
+        // Prevent multiple listener threads
         if (listenerThread != null && listenerThread.isAlive()) return;
 
         listenerThread = new Thread(() -> {
             try {
                 String message;
                 while (!socket.isClosed()) {
+                    // Wait for data only when available
                     if (in.ready()) {
                         message = in.readLine();
                         if (message == null) break;
@@ -52,6 +54,7 @@ public class GameClient {
                             }
                         }
                     } else {
+                        // No message yet → sleep a bit to avoid CPU spam
                         try {
                             Thread.sleep(50);
                         } catch (InterruptedException ignored) {}
@@ -62,7 +65,7 @@ public class GameClient {
             }
         }, "ServerListenerThread");
 
-        listenerThread.setDaemon(true); 
+        listenerThread.setDaemon(true); // won’t block program exit
         listenerThread.start();
     }
 
