@@ -23,7 +23,7 @@ public class TicTacToeGame extends JPanel {
     private JLabel turnLabel;
 
     public TicTacToeGame(String gameType) {
-        this(null, gameType, "X", "O", true); // your symbol is X, AI is O, you start first
+        this(null, gameType, "X", "O", true);
         setAIMode(true);
     }
 
