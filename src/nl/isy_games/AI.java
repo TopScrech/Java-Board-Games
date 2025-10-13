@@ -10,7 +10,6 @@ public class AI {
     }
 
     public int[] chooseMove(TicTacToeGame board) {
-        // Pick first empty cell (simple AI)
         for (int r = 0; r < 3; r++) {
             for (int c = 0; c < 3; c++) {
                 if (board.isCellEmpty(r, c)) return new int[]{r, c};
