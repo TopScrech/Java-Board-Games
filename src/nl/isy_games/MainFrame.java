@@ -13,9 +13,9 @@ public class MainFrame extends JFrame {
     private JPanel mainPanel;
     private CardLayout cardLayout;
 
-    private JLabel headerLabel; 
-    private JButton homeButton; 
-    private JButton logoutButton; 
+    private JLabel headerLabel;
+    private JButton homeButton;
+    private JButton logoutButton;
 
     public MainFrame() {
         setTitle("TicTacToe Client");
@@ -46,7 +46,7 @@ public class MainFrame extends JFrame {
         headerLabel = new JLabel("", SwingConstants.LEFT);
         headerLabel.setForeground(Color.WHITE);
         headerLabel.setFont(new Font("Arial", Font.BOLD, 20));
-        headerLabel.setVisible(false); 
+        headerLabel.setVisible(false);
 
         JButton homeButton = createRoundedButton("Home", new Color(0, 123, 255), Color.WHITE);
         homeButton.setVisible(false);
@@ -87,8 +87,9 @@ public class MainFrame extends JFrame {
         return header;
     }
 
+
     private JPanel createLoginPanel() {
-        JPanel panel = new JPanel(new GridBagLayout()); 
+        JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(new Color(28, 28, 30));
 
         JPanel loginBox = new JPanel();
@@ -112,13 +113,13 @@ public class MainFrame extends JFrame {
         nameField.setForeground(Color.WHITE);
         nameField.setCaretColor(Color.WHITE);
         nameField.setBorder(BorderFactory.createEmptyBorder(5, 15, 5, 15));
-        nameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 45)); 
+        nameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 45));
         nameField.setAlignmentX(Component.CENTER_ALIGNMENT);
         loginBox.add(nameField);
         loginBox.add(Box.createVerticalStrut(15));
 
         JButton loginButton = createRoundedButton("Login", new Color(0, 123, 255), Color.WHITE);
-        loginButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50)); 
+        loginButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
         loginButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         loginBox.add(loginButton);
         loginBox.add(Box.createVerticalStrut(15));
@@ -161,8 +162,6 @@ public class MainFrame extends JFrame {
         return panel;
     }
 
-
-
     private JPanel createGameSelectorPanel() {
         JPanel panel = new JPanel(new BorderLayout(20, 20));
         panel.setBackground(new Color(28, 28, 30)); // dark background
@@ -173,7 +172,7 @@ public class MainFrame extends JFrame {
         welcomeLabel.setForeground(Color.WHITE);
         panel.add(welcomeLabel, BorderLayout.NORTH);
 
-        JPanel gameGrid = new JPanel(new GridLayout(0, 5, 20, 20)); 
+        JPanel gameGrid = new JPanel(new GridLayout(0, 5, 20, 20));
         gameGrid.setBackground(new Color(28, 28, 30));
 
         try {
@@ -189,20 +188,20 @@ public class MainFrame extends JFrame {
                         break;
                     case "connect-four":
                     case "connect4":
-                        bgColor = new Color(255, 193, 7); 
+                        bgColor = new Color(255, 193, 7);
                         iconPath = "/icons/Connect4.png";
                         break;
                     case "reversi":
                     case "othello":
-                        bgColor = new Color(69, 255, 7); 
+                        bgColor = new Color(69, 255, 7);
                         iconPath = "/icons/Othello.png";
                         break;
                     case "battleship":
-                        bgColor = new Color(106, 70, 194); 
+                        bgColor = new Color(106, 70, 194);
                         iconPath = "/icons/Battleship.png";
                         break;
                     default:
-                        bgColor = new Color(0, 123, 255); 
+                        bgColor = new Color(0, 123, 255);
                         iconPath = "/icons/TicTacToe.png";
                 }
 
@@ -265,9 +264,6 @@ public class MainFrame extends JFrame {
         return panel;
     }
 
-
-
-
     private JPanel createGameModePanel(String gameName) {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -298,9 +294,9 @@ public class MainFrame extends JFrame {
         pvpOptionsPanel.setBackground(new Color(28, 28, 30));
 
         JButton randomBtn = createRoundedButton("Random", new Color(0, 123, 255), Color.WHITE);
-        randomBtn.setPreferredSize(new Dimension(140, 60)); // slightly bigger
+        randomBtn.setPreferredSize(new Dimension(140, 60));
         JButton findBtn = createRoundedButton("Find Player", new Color(255, 193, 7), Color.WHITE);
-        findBtn.setPreferredSize(new Dimension(140, 60)); // slightly bigger
+        findBtn.setPreferredSize(new Dimension(140, 60));
         randomBtn.setVisible(false);
         findBtn.setVisible(false);
 
@@ -334,23 +330,27 @@ public class MainFrame extends JFrame {
                     boolean challengeSent = false;
                     while (!challengeSent) {
                         List<String> players = client.getPlayerList();
+
                         for (String p : players) {
                             if (!p.equalsIgnoreCase(client.getPlayerName())) {
                                 if (client.getPlayerName().compareToIgnoreCase(p) < 0) {
                                     client.challenge(p, gameName);
+                                    statusLabel.setText("Challenged " + p + " — waiting for acceptance...");
+                                } else {
+                                    statusLabel.setText("Waiting for challenge from " + p + "...");
                                 }
                                 challengeSent = true;
                                 break;
                             }
                         }
-                        Thread.sleep(1000);
+
+                        Thread.sleep(1500);
                     }
                 } catch (Exception ex) {
                     ex.printStackTrace();
                 }
             }).start();
         });
-
 
         findBtn.addActionListener(e -> {
             randomBtn.setVisible(false);
@@ -369,12 +369,11 @@ public class MainFrame extends JFrame {
                 client.challenge(opponentName, gameName);
                 statusLabel.setText("Invitation sent to " + opponentName);
                 MatchHandler.setMode(client, MatchHandler.Mode.FIND_PLAYER);
-                setCurrentOpponentName(opponentName); 
+                setCurrentOpponentName(opponentName);
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
         });
-
         return panel;
     }
 
@@ -391,6 +390,7 @@ public class MainFrame extends JFrame {
     public void clearCurrentOpponent() {
         currentOpponentName = null;
     }
+
 
     private void startAIMode(String gameName) {
         TicTacToeGame board = new TicTacToeGame(gameName);

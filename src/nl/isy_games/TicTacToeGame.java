@@ -23,7 +23,7 @@ public class TicTacToeGame extends JPanel {
     private JLabel turnLabel;
 
     public TicTacToeGame(String gameType) {
-        this(null, gameType, "X", "O", true); // your symbol is X, AI is O, you start first
+        this(null, gameType, "X", "O", true);
         setAIMode(true);
     }
 
@@ -59,7 +59,7 @@ public class TicTacToeGame extends JPanel {
         add(turnLabel, BorderLayout.NORTH);
         add(boardWrapper, BorderLayout.CENTER);
 
-        updateTurnLabel(); // show first turn
+        updateTurnLabel(); 
         setVisible(true);
     }
 
@@ -133,13 +133,11 @@ public class TicTacToeGame extends JPanel {
         currentTurn = Turn.OPPONENT;
         SwingUtilities.invokeLater(this::updateTurnLabel);
 
-        // Send move to server if it's PvP
         if (client != null && !aiMode) {
             int moveIndex = row * cols + col;
-            client.sendMove(moveIndex); // ✅ Only pass the index
+            client.sendMove(moveIndex); 
         }
 
-        // AI move if AI mode
         if (!gameOver && aiMode) {
             new Thread(() -> {
                 try { Thread.sleep(400); } catch (InterruptedException ignored) {}
@@ -202,7 +200,7 @@ public class TicTacToeGame extends JPanel {
 
     public void updateBoardFromServer(String message) {
         if (message.contains("MOVE")) {
-            int moveIndex = parseMoveIndex(message); // extract move index from message
+            int moveIndex = parseMoveIndex(message); 
             int row = moveIndex / cols;
             int col = moveIndex % cols;
 

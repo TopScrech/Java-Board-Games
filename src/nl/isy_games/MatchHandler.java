@@ -93,7 +93,7 @@ public class MatchHandler {
 
     private static void handleMatchStart(GameClient client, String message) {
         String opponent = parseValue(message, "OPPONENT");
-        String firstPlayer = parseValue(message, "FIRST"); 
+        String firstPlayer = parseValue(message, "FIRST");
         String gameType = parseValue(message, "GAMETYPE");
 
         if (opponent == null || gameType == null) return;
@@ -106,9 +106,12 @@ public class MatchHandler {
 
             if (boards.get(client) != null) return;
 
-            boolean myTurnFirst = firstPlayer != null
-                    ? client.getPlayerName().equalsIgnoreCase(firstPlayer)
-                    : client.getPlayerName().compareToIgnoreCase(opponent) < 0;
+            boolean myTurnFirst;
+            if (firstPlayer != null && !firstPlayer.isEmpty()) {
+                myTurnFirst = client.getPlayerName().equalsIgnoreCase(firstPlayer);
+            } else {
+                myTurnFirst = client.getPlayerName().compareToIgnoreCase(opponent) < 0;
+            }
 
             String mySymbol = myTurnFirst ? "X" : "O";
             String opponentSymbol = myTurnFirst ? "O" : "X";
@@ -121,9 +124,10 @@ public class MatchHandler {
             mainFrame.setHeaderLabel("Playing vs " + opponent);
 
             modes.put(client, Mode.NONE);
-            mainFrame.clearCurrentOpponent(); 
+            mainFrame.clearCurrentOpponent();
         });
     }
+
 
     private static String parseValue(String message, String key) {
         try {
