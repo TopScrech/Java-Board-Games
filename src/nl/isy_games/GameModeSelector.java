@@ -1,4 +1,4 @@
-package classes;
+package nl.isy_games;
 
 import javax.swing.*;
 import java.awt.*;
@@ -8,7 +8,7 @@ public class GameModeSelector extends JFrame {
 
     private final GameClient client;
     private final String gameName;
-    private JLabel statusLabel;
+    private final JLabel statusLabel;
 
     public GameModeSelector(GameClient client, String gameName) {
         this.client = client;

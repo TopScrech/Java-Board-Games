@@ -1,4 +1,4 @@
-package classes;
+package nl.isy_games;
 
 import javax.swing.*;
 import java.awt.*;
@@ -6,9 +6,9 @@ import java.io.IOException;
 
 public class LoginGUI extends JFrame {
 
-    private JTextField nameField;
-    private JButton loginButton;
-    private JLabel statusLabel;
+    private final JTextField nameField;
+    private final JButton loginButton;
+    private final JLabel statusLabel;
     private GameClient client;
 
     public LoginGUI() {
