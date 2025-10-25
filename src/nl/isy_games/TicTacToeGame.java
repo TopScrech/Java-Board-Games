@@ -27,7 +27,6 @@ public class TicTacToeGame extends JPanel {
         setAIMode(true);
     }
 
-
     public TicTacToeGame(GameClient client, String gameType, String mySymbol, String opponentSymbol, boolean myTurnFirst) {
         this.client = client;
         this.gameType = gameType.toLowerCase();
@@ -59,7 +58,7 @@ public class TicTacToeGame extends JPanel {
         add(turnLabel, BorderLayout.NORTH);
         add(boardWrapper, BorderLayout.CENTER);
 
-        updateTurnLabel(); 
+        updateTurnLabel();
         setVisible(true);
     }
 
@@ -135,7 +134,7 @@ public class TicTacToeGame extends JPanel {
 
         if (client != null && !aiMode) {
             int moveIndex = row * cols + col;
-            client.sendMove(moveIndex); 
+            client.sendMove(moveIndex);
         }
 
         if (!gameOver && aiMode) {
@@ -198,9 +197,20 @@ public class TicTacToeGame extends JPanel {
         return cells[r][c].getText().isEmpty();
     }
 
+    public String[][] getBoardState() {
+        String[][] state = new String[rows][cols];
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                String value = cells[r][c].getText();
+                state[r][c] = value == null ? "" : value.trim();
+            }
+        }
+        return state;
+    }
+
     public void updateBoardFromServer(String message) {
         if (message.contains("MOVE")) {
-            int moveIndex = parseMoveIndex(message); 
+            int moveIndex = parseMoveIndex(message);
             int row = moveIndex / cols;
             int col = moveIndex % cols;
 

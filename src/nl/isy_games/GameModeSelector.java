@@ -38,9 +38,17 @@ public class GameModeSelector extends JFrame {
     }
 
     private void startAIMode() {
-        TicTacToeGame board = new TicTacToeGame(null);
+        String type = gameName == null ? "tic-tac-toe" : gameName;
+        TicTacToeGame board = new TicTacToeGame(type);
         board.setAIMode(true);
-        board.setVisible(true);
+
+        JFrame frame = new JFrame("Tic-Tac-Toe - AI");
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.setContentPane(board);
+        frame.pack();
+        frame.setLocationRelativeTo(this);
+        frame.setVisible(true);
+
         dispose();
     }
 

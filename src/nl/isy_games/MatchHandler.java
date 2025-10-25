@@ -128,7 +128,6 @@ public class MatchHandler {
         });
     }
 
-
     private static String parseValue(String message, String key) {
         try {
             int idx = message.indexOf(key + ":");
