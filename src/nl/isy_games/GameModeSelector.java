@@ -47,6 +47,7 @@ public class GameModeSelector extends JFrame {
         frame.setContentPane(board);
         frame.pack();
         frame.setLocationRelativeTo(this);
+        board.setCloseCallback(() -> SwingUtilities.invokeLater(frame::dispose));
         frame.setVisible(true);
 
         dispose();

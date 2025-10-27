@@ -46,7 +46,7 @@ public class LoginGUI extends JFrame {
         }
 
         try {
-            client = new GameClient("127.0.0.1", 7789, playerName);
+            client = new GameClient("5.83.140.43", 7789, playerName);
             new Thread(client::startListening).start();
             client.login();
             statusLabel.setText("Status: Ingelogd als " + playerName);

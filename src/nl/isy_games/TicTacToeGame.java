@@ -13,9 +13,12 @@ public class TicTacToeGame extends JPanel {
     private int rows = 3;
     private int cols = 3;
     private String gameType = "tic-tac-toe";
+    private int cellSize;
+    private Runnable closeCallback = () -> {};
 
     private enum Turn { PLAYER, OPPONENT }
     private Turn currentTurn = Turn.PLAYER;
+    private final Turn initialTurn;
 
     private String mySymbol = "X";
     private String opponentSymbol = "O";
@@ -33,10 +36,12 @@ public class TicTacToeGame extends JPanel {
         this.mySymbol = mySymbol;
         this.opponentSymbol = opponentSymbol;
         this.currentTurn = myTurnFirst ? Turn.PLAYER : Turn.OPPONENT;
+        this.initialTurn = this.currentTurn;
 
         int[] size = getBoardSize(gameType);
         this.rows = size[0];
         this.cols = size[1];
+        this.cellSize = 165;
         this.cells = new JButton[rows][cols];
 
         turnLabel = new JLabel("", SwingConstants.CENTER);
@@ -49,7 +54,9 @@ public class TicTacToeGame extends JPanel {
         buildBoard(boardPanel);
 
         JPanel boardWrapper = new JPanel(new GridBagLayout());
-        boardWrapper.setPreferredSize(new Dimension(455, 455));
+        int boardWidth = cols * cellSize + Math.max(0, cols - 1) * 5;
+        int boardHeight = rows * cellSize + Math.max(0, rows - 1) * 5;
+        boardWrapper.setPreferredSize(new Dimension(boardWidth + 20, boardHeight + 20));
         boardWrapper.setBackground(new Color(28, 28, 30));
         boardWrapper.add(boardPanel);
 
@@ -80,7 +87,7 @@ public class TicTacToeGame extends JPanel {
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
                 JButton btn = createRoundedButton("");
-                btn.setPreferredSize(new Dimension(150, 150));
+                btn.setPreferredSize(new Dimension(cellSize, cellSize));
                 final int row = r, col = c;
                 btn.addActionListener(e -> {
                     handleCellClick(row, col);
@@ -176,10 +183,9 @@ public class TicTacToeGame extends JPanel {
                     cells[combo[2]][combo[3]].getText().equals(symbol) &&
                     cells[combo[4]][combo[5]].getText().equals(symbol)) {
 
-                gameOver = true;
-                JOptionPane.showMessageDialog(this, "Player " + symbol + " wins!");
+                handleGameOver("Player " + symbol + " wins!");
                 return;
-            }
+        }
         }
 
         boolean allFilled = true;
@@ -188,8 +194,44 @@ public class TicTacToeGame extends JPanel {
                 if (isCellEmpty(r, c)) { allFilled = false; break; }
 
         if (allFilled) {
-            gameOver = true;
-            JOptionPane.showMessageDialog(this, "Draw!");
+            handleGameOver("Draw!");
+        }
+    }
+
+    private void handleGameOver(String dialogMessage) {
+        if (gameOver) return;
+        gameOver = true;
+
+        Object[] options = aiMode ? new Object[]{"Restart", "Close"} : new Object[]{"Close"};
+        int choice = JOptionPane.showOptionDialog(
+                this,
+                dialogMessage,
+                "Game Over",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.INFORMATION_MESSAGE,
+                null,
+                options,
+                options[0]
+        );
+
+        if (aiMode && choice == 0) restartGame();
+        else closeCallback.run();
+    }
+
+    private void restartGame() {
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                cells[r][c].setText("");
+                cells[r][c].setForeground(Color.WHITE);
+            }
+        }
+
+        gameOver = false;
+        currentTurn = initialTurn;
+        updateTurnLabel();
+
+        if (aiMode && currentTurn == Turn.OPPONENT) {
+            SwingUtilities.invokeLater(this::aiMove);
         }
     }
 
@@ -242,4 +284,10 @@ public class TicTacToeGame extends JPanel {
             SwingUtilities.invokeLater(this::updateTurnLabel);
         }
     }
+
+    public void setCloseCallback(Runnable closeCallback) {
+        this.closeCallback = closeCallback != null ? closeCallback : () -> {};
+    }
+
+    // no calculateCellSize helper: cell size stays constant throughout
 }
