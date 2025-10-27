@@ -20,9 +20,6 @@ public class GameModeSelector extends JFrame {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
-        JLabel label = new JLabel("Kies modus voor " + gameName + ":", SwingConstants.CENTER);
-        add(label);
-
         JButton vsPlayerBtn = new JButton("Spelen tegen speler (Server)");
         JButton vsAIBtn = new JButton("Spelen tegen AI (Client)");
         add(vsPlayerBtn);
