@@ -134,15 +134,15 @@ public class TicTacToeGame extends JPanel {
         cells[row][col].setText(mySymbol);
         cells[row][col].setForeground(new Color(0, 191, 255));
 
-        checkGameOver(mySymbol);
-
-        currentTurn = Turn.OPPONENT;
-        SwingUtilities.invokeLater(this::updateTurnLabel);
-
         if (client != null && !aiMode) {
             int moveIndex = row * cols + col;
             client.sendMove(moveIndex);
         }
+
+        currentTurn = Turn.OPPONENT;
+        SwingUtilities.invokeLater(this::updateTurnLabel);
+
+        checkGameOver(mySymbol);
 
         if (!gameOver && aiMode) {
             new Thread(() -> {
