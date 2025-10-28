@@ -6,11 +6,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class GameClient {
-
-    private Socket socket;
-    private BufferedReader in;
-    private PrintWriter out;
-    private String playerName;
+    private final Socket socket;
+    private final BufferedReader in;
+    private final PrintWriter out;
+    private final String playerName;
 
     private final List<ServerListener> serverListeners = new ArrayList<>();
     private Thread listenerThread;
@@ -73,11 +72,13 @@ public class GameClient {
     public void login() throws IOException {
         send("login " + playerName);
         String response;
+
         while ((response = in.readLine()) != null) {
             System.out.println("DEBUG Server response: " + response);
             if (response.startsWith("OK")) return;
             else if (response.startsWith("ERR")) throw new IOException("Login failed: " + response);
         }
+
         throw new IOException("Login failed: no response from server");
     }
 

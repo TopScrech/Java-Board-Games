@@ -8,7 +8,7 @@ public class GameModeSelector extends JFrame {
 
     private final GameClient client;
     private final String gameName;
-    private JLabel statusLabel;
+    private final JLabel statusLabel;
 
     public GameModeSelector(GameClient client, String gameName) {
         this.client = client;
@@ -19,9 +19,6 @@ public class GameModeSelector extends JFrame {
         setLayout(new GridLayout(3, 1, 5, 5));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-
-        JLabel label = new JLabel("Kies modus voor " + gameName + ":", SwingConstants.CENTER);
-        add(label);
 
         JButton vsPlayerBtn = new JButton("Spelen tegen speler (Server)");
         JButton vsAIBtn = new JButton("Spelen tegen AI (Client)");
@@ -38,9 +35,18 @@ public class GameModeSelector extends JFrame {
     }
 
     private void startAIMode() {
-        TicTacToeGame board = new TicTacToeGame(null);
+        String type = gameName == null ? "tic-tac-toe" : gameName;
+        TicTacToeGame board = new TicTacToeGame(type);
         board.setAIMode(true);
-        board.setVisible(true);
+
+        JFrame frame = new JFrame("Tic-Tac-Toe - AI");
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.setContentPane(board);
+        frame.pack();
+        frame.setLocationRelativeTo(this);
+        board.setCloseCallback(() -> SwingUtilities.invokeLater(frame::dispose));
+        frame.setVisible(true);
+
         dispose();
     }
 

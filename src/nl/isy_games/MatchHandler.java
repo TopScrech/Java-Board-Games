@@ -118,6 +118,14 @@ public class MatchHandler {
 
             TicTacToeGame newBoard = new TicTacToeGame(client, gameType, mySymbol, opponentSymbol, myTurnFirst);
             boards.put(client, newBoard);
+            newBoard.setCloseCallback(() -> {
+                boards.remove(client);
+                matchStarted.remove(client);
+                SwingUtilities.invokeLater(() -> {
+                    MainFrame frame = parentFrames.get(client);
+                    if (frame != null) frame.closeGameBoard(newBoard);
+                });
+            });
 
             mainFrame.getMainPanel().add(newBoard, "currentGame");
             mainFrame.showCard("currentGame");
@@ -127,7 +135,6 @@ public class MatchHandler {
             mainFrame.clearCurrentOpponent();
         });
     }
-
 
     private static String parseValue(String message, String key) {
         try {

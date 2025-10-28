@@ -140,7 +140,7 @@ public class MainFrame extends JFrame {
             loginButton.setEnabled(false);
 
             try {
-                client = new GameClient("127.0.0.1", 7789, playerName);
+                client = new GameClient("5.83.140.43", 7789, playerName);
                 new Thread(client::startListening).start();
                 client.login();
 
@@ -395,10 +395,21 @@ public class MainFrame extends JFrame {
     private void startAIMode(String gameName) {
         TicTacToeGame board = new TicTacToeGame(gameName);
         board.setAIMode(true);
+        board.setCloseCallback(() -> SwingUtilities.invokeLater(() -> closeGameBoard(board)));
 
         mainPanel.add(board, "currentGame");
         showCard("currentGame");
         setHeaderLabel("Playing vs AI");
+    }
+
+    public void closeGameBoard(TicTacToeGame board) {
+        if (board != null) {
+            mainPanel.remove(board);
+        }
+        showCard("gameSelector");
+        setHeaderLabel("");
+        mainPanel.revalidate();
+        mainPanel.repaint();
     }
 
     private JButton createRoundedButton(String text, Color bgColor, Color fgColor) {
