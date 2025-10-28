@@ -279,6 +279,7 @@ public class TicTacToeGame extends JPanel {
 
     public void setAIMode(boolean aiMode) {
         this.aiMode = aiMode;
+
         if (aiMode) {
             aiPlayer = new AI("Computer", opponentSymbol);
             SwingUtilities.invokeLater(this::updateTurnLabel);
@@ -288,6 +289,4 @@ public class TicTacToeGame extends JPanel {
     public void setCloseCallback(Runnable closeCallback) {
         this.closeCallback = closeCallback != null ? closeCallback : () -> {};
     }
-
-    // no calculateCellSize helper: cell size stays constant throughout
 }
