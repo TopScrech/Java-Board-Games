@@ -23,7 +23,7 @@ public class TicTacToeGame extends JPanel {
     private String mySymbol = "X";
     private String opponentSymbol = "O";
 
-    private JLabel turnLabel;
+    private final JLabel turnLabel;
 
     public TicTacToeGame(String gameType) {
         this(null, gameType, "X", "O", true);
