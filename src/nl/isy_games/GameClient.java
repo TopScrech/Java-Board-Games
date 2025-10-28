@@ -150,7 +150,7 @@ public class GameClient {
         System.out.println("DEBUG: Challenge denied #" + challengeNumber);
     }
 
-    private void send(String msg) {
+    void send(String msg) {
         out.println(msg);
         System.out.println("DEBUG Sent: " + msg);
     }

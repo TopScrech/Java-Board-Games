@@ -59,6 +59,7 @@ public class MainFrame extends JFrame {
         JButton logoutButton = createRoundedButton("Logout", new Color(220, 53, 69), Color.WHITE);
         logoutButton.setVisible(false);
         logoutButton.addActionListener(e -> {
+            client.send("logout");
             client = null;
             mainPanel.removeAll();
             mainPanel.add(createLoginPanel(), "login");
