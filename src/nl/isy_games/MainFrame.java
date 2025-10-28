@@ -1,4 +1,4 @@
-package nl.isy_games;
+package classes;
 
 import javax.swing.*;
 import java.awt.*;
@@ -10,8 +10,8 @@ public class MainFrame extends JFrame {
 
     private GameClient client;
 
-    private final JPanel mainPanel;
-    private final CardLayout cardLayout;
+    private JPanel mainPanel;
+    private CardLayout cardLayout;
 
     private JLabel headerLabel;
     private JButton homeButton;
@@ -59,7 +59,6 @@ public class MainFrame extends JFrame {
         JButton logoutButton = createRoundedButton("Logout", new Color(220, 53, 69), Color.WHITE);
         logoutButton.setVisible(false);
         logoutButton.addActionListener(e -> {
-            client.send("logout");
             client = null;
             mainPanel.removeAll();
             mainPanel.add(createLoginPanel(), "login");
@@ -141,7 +140,7 @@ public class MainFrame extends JFrame {
             loginButton.setEnabled(false);
 
             try {
-                client = new GameClient("5.83.140.43", 7789, playerName);
+                client = new GameClient("127.0.0.1", 7789, playerName);
                 new Thread(client::startListening).start();
                 client.login();
 
@@ -396,21 +395,10 @@ public class MainFrame extends JFrame {
     private void startAIMode(String gameName) {
         TicTacToeGame board = new TicTacToeGame(gameName);
         board.setAIMode(true);
-        board.setCloseCallback(() -> SwingUtilities.invokeLater(() -> closeGameBoard(board)));
 
         mainPanel.add(board, "currentGame");
         showCard("currentGame");
         setHeaderLabel("Playing vs AI");
-    }
-
-    public void closeGameBoard(TicTacToeGame board) {
-        if (board != null) {
-            mainPanel.remove(board);
-        }
-        showCard("gameSelector");
-        setHeaderLabel("");
-        mainPanel.revalidate();
-        mainPanel.repaint();
     }
 
     private JButton createRoundedButton(String text, Color bgColor, Color fgColor) {
