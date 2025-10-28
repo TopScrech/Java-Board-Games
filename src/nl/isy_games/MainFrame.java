@@ -10,8 +10,8 @@ public class MainFrame extends JFrame {
 
     private GameClient client;
 
-    private JPanel mainPanel;
-    private CardLayout cardLayout;
+    private final JPanel mainPanel;
+    private final CardLayout cardLayout;
 
     private JLabel headerLabel;
     private JButton homeButton;
@@ -59,6 +59,7 @@ public class MainFrame extends JFrame {
         JButton logoutButton = createRoundedButton("Logout", new Color(220, 53, 69), Color.WHITE);
         logoutButton.setVisible(false);
         logoutButton.addActionListener(e -> {
+            client.send("logout");
             client = null;
             mainPanel.removeAll();
             mainPanel.add(createLoginPanel(), "login");
