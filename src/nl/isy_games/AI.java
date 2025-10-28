@@ -1,4 +1,4 @@
-package classes;
+package nl.isy_games;
 
 public class AI {
     private final String name;

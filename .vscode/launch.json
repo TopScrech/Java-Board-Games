@@ -2,6 +2,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "MainFrame",
+            "request": "launch",
+            "mainClass": "nl.isy_games.MainFrame",
+            "projectName": "Java-TicTacToe_4e9bc9c7"
+        },
+        {
+            "type": "java",
             "name": "Main",
             "request": "launch",
             "mainClass": "nl.isy_games.Main",
