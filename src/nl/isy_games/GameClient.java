@@ -93,17 +93,21 @@ public class GameClient {
         String listLine = in.readLine();
 
         List<String> players = new ArrayList<>();
+
         if (listLine != null && listLine.startsWith("SVR PLAYERLIST")) {
             int start = listLine.indexOf('[');
             int end = listLine.indexOf(']');
+
             if (start >= 0 && end > start) {
                 String list = listLine.substring(start + 1, end);
                 String[] names = list.replaceAll("\"", "").split(",");
+
                 for (String name : names)
                     if (!name.trim().isEmpty())
                         players.add(name.trim());
             }
         }
+
         return players;
     }
 
@@ -113,12 +117,15 @@ public class GameClient {
         String listLine = in.readLine();
 
         List<String> games = new ArrayList<>();
+
         if (listLine != null && listLine.startsWith("SVR GAMELIST")) {
             int start = listLine.indexOf('[');
             int end = listLine.lastIndexOf(']');
+
             if (start >= 0 && end > start) {
                 String list = listLine.substring(start + 1, end);
                 String[] items = list.split(",");
+
                 for (String game : items) {
                     game = game.replaceAll("\"", "").trim();
                     if (!game.isEmpty()) games.add(game);

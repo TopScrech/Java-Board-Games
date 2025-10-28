@@ -5,23 +5,23 @@ import java.awt.*;
 
 public class TicTacToeGame extends JPanel {
 
-    private JButton[][] cells;
+    private final JButton[][] cells;
     private boolean aiMode = false;
     private boolean gameOver = false;
-    private GameClient client;
+    private final GameClient client;
     private AI aiPlayer;
     private int rows = 3;
     private int cols = 3;
-    private String gameType = "tic-tac-toe";
-    private int cellSize;
+    private final String gameType;
+    private final int cellSize;
     private Runnable closeCallback = () -> {};
 
     private enum Turn { PLAYER, OPPONENT }
-    private Turn currentTurn = Turn.PLAYER;
+    private Turn currentTurn;
     private final Turn initialTurn;
 
-    private String mySymbol = "X";
-    private String opponentSymbol = "O";
+    private final String mySymbol;
+    private final String opponentSymbol;
 
     private final JLabel turnLabel;
 
@@ -71,16 +71,15 @@ public class TicTacToeGame extends JPanel {
 
 
     private int[] getBoardSize(String gameType) {
-        switch (gameType.toLowerCase()) {
-            case "tic-tac-toe": return new int[]{3, 3};
-            case "reversi":
-            case "othello": return new int[]{8, 8};
-            case "connect-four":
-            case "connect4": return new int[]{6, 7};
-            default:
+        return switch (gameType.toLowerCase()) {
+            case "tic-tac-toe" -> new int[]{3, 3};
+            case "reversi", "othello" -> new int[]{8, 8};
+            case "connect-four", "connect4" -> new int[]{6, 7};
+            default -> {
                 System.out.println("Unknown game type: " + gameType + ", defaulting to 3x3");
-                return new int[]{3, 3};
-        }
+                yield new int[]{3, 3};
+            }
+        };
     }
 
     private void buildBoard(JPanel boardPanel) {
@@ -107,6 +106,7 @@ public class TicTacToeGame extends JPanel {
 
     private JButton createRoundedButton(String text) {
         Color buttonColor = new Color(44, 44, 46);
+
         JButton button = new JButton(text) {
             @Override
             protected void paintComponent(Graphics g) {
