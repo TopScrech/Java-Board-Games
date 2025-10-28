@@ -1,34 +1,32 @@
-package nl.isy_games;
+package classes;
 
 import javax.swing.*;
 import java.awt.*;
 
 public class TicTacToeGame extends JPanel {
 
-    private final JButton[][] cells;
+    private JButton[][] cells;
     private boolean aiMode = false;
     private boolean gameOver = false;
-    private final GameClient client;
+    private GameClient client;
     private AI aiPlayer;
     private int rows = 3;
     private int cols = 3;
-    private final String gameType;
-    private final int cellSize;
-    private Runnable closeCallback = () -> {};
+    private String gameType = "tic-tac-toe";
 
     private enum Turn { PLAYER, OPPONENT }
-    private Turn currentTurn;
-    private final Turn initialTurn;
+    private Turn currentTurn = Turn.PLAYER;
 
-    private final String mySymbol;
-    private final String opponentSymbol;
+    private String mySymbol = "X";
+    private String opponentSymbol = "O";
 
-    private final JLabel turnLabel;
+    private JLabel turnLabel;
 
     public TicTacToeGame(String gameType) {
         this(null, gameType, "X", "O", true);
         setAIMode(true);
     }
+
 
     public TicTacToeGame(GameClient client, String gameType, String mySymbol, String opponentSymbol, boolean myTurnFirst) {
         this.client = client;
@@ -36,12 +34,10 @@ public class TicTacToeGame extends JPanel {
         this.mySymbol = mySymbol;
         this.opponentSymbol = opponentSymbol;
         this.currentTurn = myTurnFirst ? Turn.PLAYER : Turn.OPPONENT;
-        this.initialTurn = this.currentTurn;
 
         int[] size = getBoardSize(gameType);
         this.rows = size[0];
         this.cols = size[1];
-        this.cellSize = 165;
         this.cells = new JButton[rows][cols];
 
         turnLabel = new JLabel("", SwingConstants.CENTER);
@@ -54,9 +50,7 @@ public class TicTacToeGame extends JPanel {
         buildBoard(boardPanel);
 
         JPanel boardWrapper = new JPanel(new GridBagLayout());
-        int boardWidth = cols * cellSize + Math.max(0, cols - 1) * 5;
-        int boardHeight = rows * cellSize + Math.max(0, rows - 1) * 5;
-        boardWrapper.setPreferredSize(new Dimension(boardWidth + 20, boardHeight + 20));
+        boardWrapper.setPreferredSize(new Dimension(455, 455));
         boardWrapper.setBackground(new Color(28, 28, 30));
         boardWrapper.add(boardPanel);
 
@@ -71,22 +65,23 @@ public class TicTacToeGame extends JPanel {
 
 
     private int[] getBoardSize(String gameType) {
-        return switch (gameType.toLowerCase()) {
-            case "tic-tac-toe" -> new int[]{3, 3};
-            case "reversi", "othello" -> new int[]{8, 8};
-            case "connect-four", "connect4" -> new int[]{6, 7};
-            default -> {
+        switch (gameType.toLowerCase()) {
+            case "tic-tac-toe": return new int[]{3, 3};
+            case "reversi":
+            case "othello": return new int[]{8, 8};
+            case "connect-four":
+            case "connect4": return new int[]{6, 7};
+            default:
                 System.out.println("Unknown game type: " + gameType + ", defaulting to 3x3");
-                yield new int[]{3, 3};
-            }
-        };
+                return new int[]{3, 3};
+        }
     }
 
     private void buildBoard(JPanel boardPanel) {
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
                 JButton btn = createRoundedButton("");
-                btn.setPreferredSize(new Dimension(cellSize, cellSize));
+                btn.setPreferredSize(new Dimension(150, 150));
                 final int row = r, col = c;
                 btn.addActionListener(e -> {
                     handleCellClick(row, col);
@@ -106,7 +101,6 @@ public class TicTacToeGame extends JPanel {
 
     private JButton createRoundedButton(String text) {
         Color buttonColor = new Color(44, 44, 46);
-
         JButton button = new JButton(text) {
             @Override
             protected void paintComponent(Graphics g) {
@@ -183,9 +177,10 @@ public class TicTacToeGame extends JPanel {
                     cells[combo[2]][combo[3]].getText().equals(symbol) &&
                     cells[combo[4]][combo[5]].getText().equals(symbol)) {
 
-                handleGameOver("Player " + symbol + " wins!");
+                gameOver = true;
+                JOptionPane.showMessageDialog(this, "Player " + symbol + " wins!");
                 return;
-        }
+            }
         }
 
         boolean allFilled = true;
@@ -194,60 +189,13 @@ public class TicTacToeGame extends JPanel {
                 if (isCellEmpty(r, c)) { allFilled = false; break; }
 
         if (allFilled) {
-            handleGameOver("Draw!");
-        }
-    }
-
-    private void handleGameOver(String dialogMessage) {
-        if (gameOver) return;
-        gameOver = true;
-
-        Object[] options = aiMode ? new Object[]{"Restart", "Close"} : new Object[]{"Close"};
-        int choice = JOptionPane.showOptionDialog(
-                this,
-                dialogMessage,
-                "Game Over",
-                JOptionPane.DEFAULT_OPTION,
-                JOptionPane.INFORMATION_MESSAGE,
-                null,
-                options,
-                options[0]
-        );
-
-        if (aiMode && choice == 0) restartGame();
-        else closeCallback.run();
-    }
-
-    private void restartGame() {
-        for (int r = 0; r < rows; r++) {
-            for (int c = 0; c < cols; c++) {
-                cells[r][c].setText("");
-                cells[r][c].setForeground(Color.WHITE);
-            }
-        }
-
-        gameOver = false;
-        currentTurn = initialTurn;
-        updateTurnLabel();
-
-        if (aiMode && currentTurn == Turn.OPPONENT) {
-            SwingUtilities.invokeLater(this::aiMove);
+            gameOver = true;
+            JOptionPane.showMessageDialog(this, "Draw!");
         }
     }
 
     public boolean isCellEmpty(int r, int c) {
         return cells[r][c].getText().isEmpty();
-    }
-
-    public String[][] getBoardState() {
-        String[][] state = new String[rows][cols];
-        for (int r = 0; r < rows; r++) {
-            for (int c = 0; c < cols; c++) {
-                String value = cells[r][c].getText();
-                state[r][c] = value == null ? "" : value.trim();
-            }
-        }
-        return state;
     }
 
     public void updateBoardFromServer(String message) {
@@ -279,14 +227,9 @@ public class TicTacToeGame extends JPanel {
 
     public void setAIMode(boolean aiMode) {
         this.aiMode = aiMode;
-
         if (aiMode) {
             aiPlayer = new AI("Computer", opponentSymbol);
             SwingUtilities.invokeLater(this::updateTurnLabel);
         }
-    }
-
-    public void setCloseCallback(Runnable closeCallback) {
-        this.closeCallback = closeCallback != null ? closeCallback : () -> {};
     }
 }
