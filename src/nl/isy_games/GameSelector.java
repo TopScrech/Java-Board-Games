@@ -1,11 +1,6 @@
-package nl.isy_games;
+package classes;
 
 import javax.swing.*;
-
-import nl.isy_games.GameClient;
-import nl.isy_games.GameModeSelector;
-import nl.isy_games.TicTacToeGame;
-
 import java.awt.*;
 import java.io.IOException;
 import java.util.List;
