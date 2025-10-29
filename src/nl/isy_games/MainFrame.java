@@ -1,4 +1,4 @@
-package nl.isy_games;
+package classes;
 
 import javax.swing.*;
 import java.awt.*;
@@ -367,10 +367,11 @@ public class MainFrame extends JFrame {
                     return;
                 }
 
-                client.challenge(opponentName, gameName);
-                statusLabel.setText("Invitation sent to " + opponentName);
                 MatchHandler.setMode(client, MatchHandler.Mode.FIND_PLAYER);
                 setCurrentOpponentName(opponentName);
+
+                client.challenge(opponentName, gameName);
+                statusLabel.setText("Invitation sent to " + opponentName);
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
@@ -394,14 +395,25 @@ public class MainFrame extends JFrame {
 
 
     private void startAIMode(String gameName) {
-        TicTacToeGame board = new TicTacToeGame(gameName);
-        board.setAIMode(true);
-        board.setCloseCallback(() -> SwingUtilities.invokeLater(() -> closeGameBoard(board)));
+        BoardGame gamePanel;
+        switch (gameName.toLowerCase()) {
+            case "tic-tac-toe":
+                gamePanel = new TicTacToeGame(null, true, true);
+                break;
+            case "reversi":
+            case "othello":
+                gamePanel = new ReversiGame();
+                break;
+            default:
+                JOptionPane.showMessageDialog(this, "Game not implemented yet.");
+                return;
+        }
 
-        mainPanel.add(board, "currentGame");
+        mainPanel.add(gamePanel, "currentGame");
         showCard("currentGame");
-        setHeaderLabel("Playing vs AI");
+        setHeaderLabel("Playing " + gameName);
     }
+
 
     public void closeGameBoard(TicTacToeGame board) {
         if (board != null) {
