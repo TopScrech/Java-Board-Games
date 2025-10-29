@@ -1,4 +1,4 @@
-package nl.isy_games;
+package classes;
 
 import javax.swing.*;
 import java.awt.*;
@@ -36,16 +36,17 @@ public class GameModeSelector extends JFrame {
 
     private void startAIMode() {
         String type = gameName == null ? "tic-tac-toe" : gameName;
-        TicTacToeGame board = new TicTacToeGame(type);
-        board.setAIMode(true);
 
-        JFrame frame = new JFrame("Tic-Tac-Toe - AI");
+        TicTacToeGame board = new TicTacToeGame(null, true, true);
+
+        JFrame frame = new JFrame("Tic-Tac-Toe - AI Mode");
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setContentPane(board);
         frame.pack();
         frame.setLocationRelativeTo(this);
-        board.setCloseCallback(() -> SwingUtilities.invokeLater(frame::dispose));
         frame.setVisible(true);
+
+        board.setCloseCallback(() -> SwingUtilities.invokeLater(frame::dispose));
 
         dispose();
     }
