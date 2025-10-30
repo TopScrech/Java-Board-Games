@@ -1,4 +1,4 @@
-package classes;
+package nl.isy_games;
 
 import javax.swing.*;
 import java.awt.*;
