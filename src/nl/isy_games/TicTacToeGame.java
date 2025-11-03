@@ -186,16 +186,17 @@ public class TicTacToeGame extends BoardGame {
         }
 
         placeMove(r, c, mySymbol, new Color(0,191,255));
+
+        if (client != null) {
+            int moveIndex = r * cols + c;
+            client.sendMove(moveIndex);
+        }
+
         checkGameOver(mySymbol);
 
         if (!gameOver) {
             currentTurn = Turn.REMOTE;
             updateTurnLabel();
-        }
-
-        if (client != null) {
-            int moveIndex = r * cols + c;
-            client.sendMove(moveIndex);
         }
     }
 
