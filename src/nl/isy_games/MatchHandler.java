@@ -13,6 +13,7 @@ public class MatchHandler {
     private static final Map<GameClient, TicTacToeGame> boards = new ConcurrentHashMap<>();
     private static final Map<GameClient, MainFrame> parentFrames = new ConcurrentHashMap<>();
     private static final Set<GameClient> attachedClients = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private static final Map<GameClient, Boolean> manuallyAcceptedChallenges = new ConcurrentHashMap<>();
 
     public static void setMode(GameClient client, Mode mode) { modes.put(client, mode); }
     public static void setParentFrame(GameClient client, MainFrame frame) { parentFrames.put(client, frame); }
@@ -33,6 +34,19 @@ public class MatchHandler {
         });
     }
 
+    private static void recordManualAcceptance(GameClient client) {
+        manuallyAcceptedChallenges.put(client, true);
+    }
+
+    private static boolean consumeManualAcceptance(GameClient client) {
+        return Boolean.TRUE.equals(manuallyAcceptedChallenges.remove(client));
+    }
+
+    private static void acceptChallenge(GameClient client, int challengeNumber, boolean manualAcceptance) {
+        client.acceptChallenge(challengeNumber);
+        if (manualAcceptance) recordManualAcceptance(client);
+    }
+
     private static void handleChallenge(GameClient client, String message) {
         String challenger = parseValue(message,"CHALLENGER");
         String challengeNumberStr = parseValue(message,"CHALLENGENUMBER");
@@ -46,15 +60,15 @@ public class MatchHandler {
         SwingUtilities.invokeLater(() -> {
             try {
                 switch(mode){
-                    case RANDOM: client.acceptChallenge(challengeNumber); break;
+                    case RANDOM: acceptChallenge(client, challengeNumber, false); break;
                     case FIND_PLAYER:
                         if(frame.getCurrentOpponentName()!=null &&
                                 frame.getCurrentOpponentName().equalsIgnoreCase(challenger))
-                            client.acceptChallenge(challengeNumber);
+                            acceptChallenge(client, challengeNumber, false);
                         break;
                     default:
                         int response = JOptionPane.showConfirmDialog(frame, challenger+" has challenged you to TicTacToe. Accept?", "Challenge", JOptionPane.YES_NO_OPTION);
-                        if(response==JOptionPane.YES_OPTION) client.acceptChallenge(challengeNumber);
+                        if(response==JOptionPane.YES_OPTION) acceptChallenge(client, challengeNumber, true);
                         else client.denyChallenge(challengeNumber);
                         break;
                 }
@@ -65,6 +79,7 @@ public class MatchHandler {
     private static void handleMatchStart(GameClient client, String message) {
         String opponent = parseValue(message, "OPPONENT");
         String firstPlayer = parseValue(message, "FIRST");
+        String playerToMove = parseValue(message, "PLAYERTOMOVE");
 
         if (opponent == null) return;
         if (Boolean.TRUE.equals(matchStarted.get(client))) return;
@@ -74,17 +89,27 @@ public class MatchHandler {
             MainFrame frame = parentFrames.get(client);
             if (frame == null) return;
 
-            boolean myTurnFirst = firstPlayer != null && !firstPlayer.isEmpty()
-                    ? client.getPlayerName().equalsIgnoreCase(firstPlayer)
-                    : client.getPlayerName().compareToIgnoreCase(opponent) < 0;
+            boolean manuallyAccepted = consumeManualAcceptance(client);
+            boolean autoPlayLocal = !manuallyAccepted;
 
-            TicTacToeGame board = new TicTacToeGame(client, false, false); // PvP
+            String myName = client.getPlayerName();
+            boolean myTurnFirst;
+            if (playerToMove != null && !playerToMove.isEmpty()) {
+                myTurnFirst = myName.equalsIgnoreCase(playerToMove);
+            } else if (firstPlayer != null && !firstPlayer.isEmpty()) {
+                myTurnFirst = myName.equalsIgnoreCase(firstPlayer);
+            } else {
+                myTurnFirst = myName.compareToIgnoreCase(opponent) < 0;
+            }
+
+            TicTacToeGame board = new TicTacToeGame(client, false, false, autoPlayLocal); // AI auto-play if not manually accepted
             board.setTurn(myTurnFirst ? TicTacToeGame.Turn.LOCAL : TicTacToeGame.Turn.REMOTE);
 
             if (myTurnFirst) board.setSymbols("X","O");
             else board.setSymbols("O","X");
 
             boards.put(client, board);
+            if (autoPlayLocal) board.triggerAutoMoveIfNeeded();
             frame.setCurrentOpponentName(opponent);
 
             board.setCloseCallback(() -> {

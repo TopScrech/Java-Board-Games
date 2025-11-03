@@ -1,5 +1,7 @@
 package nl.isy_games;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 public class AI {
     private final String name;
     private final String symbol;
@@ -15,7 +17,9 @@ public class AI {
         String[][] state = board.getBoardState();
 
         if (isBoardEmpty(state)) {
-            return new int[]{1, 1};
+            int row = ThreadLocalRandom.current().nextInt(state.length);
+            int col = ThreadLocalRandom.current().nextInt(state[0].length);
+            return new int[]{row, col};
         }
 
         int bestScore = Integer.MIN_VALUE;
