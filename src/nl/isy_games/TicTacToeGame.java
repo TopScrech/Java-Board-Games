@@ -2,6 +2,8 @@ package nl.isy_games;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 public class TicTacToeGame extends BoardGame {
 
@@ -14,6 +16,8 @@ public class TicTacToeGame extends BoardGame {
     private AI aiPlayer;
     private Runnable closeCallback = () -> {};
     private boolean localAiMovePending = false;
+    private JDialog gameOverDialog;
+    private Runnable gameOverDialogClosedListener = () -> {};
 
     private Turn currentTurn;
     private final Turn initialTurn;
@@ -274,9 +278,89 @@ public class TicTacToeGame extends BoardGame {
 
     private void handleGameOver(String message) {
         if (gameOver) return;
-        gameOver=true;
-        JOptionPane.showMessageDialog(this,message,"Game Over",JOptionPane.INFORMATION_MESSAGE);
+        gameOver = true;
+        showGameOverDialog(message);
         closeCallback.run();
+    }
+
+    private void showGameOverDialog(String message) {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(() -> showGameOverDialog(message));
+            return;
+        }
+
+        dismissGameOverDialog();
+
+        JOptionPane pane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE);
+        pane.setOptions(new Object[]{"OK"});
+        JDialog dialog = pane.createDialog(this, "Game Over");
+        dialog.setModal(false);
+        dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+        dialog.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent e) {
+                gameOverDialog = null;
+                notifyGameOverDialogClosed();
+            }
+
+            @Override
+            public void windowClosing(WindowEvent e) {
+                gameOverDialog = null;
+            }
+        });
+
+        gameOverDialog = dialog;
+        dialog.setVisible(true);
+    }
+
+    public void dismissGameOverDialog() {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(this::dismissGameOverDialog);
+            return;
+        }
+
+        if (gameOverDialog == null) return;
+
+        JDialog dialog = gameOverDialog;
+        gameOverDialog = null;
+        dialog.dispose();
+    }
+
+    public void setGameOverDialogClosedListener(Runnable listener) {
+        gameOverDialogClosedListener = listener != null ? listener : () -> {};
+    }
+
+    private void notifyGameOverDialogClosed() {
+        Runnable listener = gameOverDialogClosedListener;
+        gameOverDialogClosedListener = () -> {};
+        if (listener != null) {
+            listener.run();
+        }
+    }
+
+    public void resetBoardState() {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(this::resetBoardState);
+            return;
+        }
+
+        dismissGameOverDialog();
+
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                board[r][c] = "";
+                JButton cell = cells[r][c];
+                if (cell != null) {
+                    cell.setText("");
+                    cell.setForeground(Color.WHITE);
+                }
+            }
+        }
+
+        gameOver = false;
+        localAiMovePending = false;
+        currentTurn = initialTurn;
+        updateTurnLabel();
     }
 
     private void updateTurnLabel() {

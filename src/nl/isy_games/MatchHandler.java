@@ -14,6 +14,7 @@ public class MatchHandler {
     private static final Map<GameClient, MainFrame> parentFrames = new ConcurrentHashMap<>();
     private static final Set<GameClient> attachedClients = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private static final Map<GameClient, Boolean> manuallyAcceptedChallenges = new ConcurrentHashMap<>();
+    private static final Map<GameClient, TicTacToeGame> finishedBoards = new ConcurrentHashMap<>();
 
     public static void setMode(GameClient client, Mode mode) { modes.put(client, mode); }
     public static void setParentFrame(GameClient client, MainFrame frame) { parentFrames.put(client, frame); }
@@ -89,6 +90,12 @@ public class MatchHandler {
             MainFrame frame = parentFrames.get(client);
             if (frame == null) return;
 
+            TicTacToeGame previousBoard = finishedBoards.remove(client);
+            if (previousBoard != null) {
+                previousBoard.dismissGameOverDialog();
+                previousBoard.resetBoardState();
+            }
+
             boolean manuallyAccepted = consumeManualAcceptance(client);
             boolean autoPlayLocal = !manuallyAccepted;
 
@@ -103,6 +110,8 @@ public class MatchHandler {
             }
 
             TicTacToeGame board = new TicTacToeGame(client, false, false, autoPlayLocal); // AI auto-play if not manually accepted
+            board.resetBoardState();
+            board.setGameOverDialogClosedListener(() -> finishedBoards.remove(client));
             board.setTurn(myTurnFirst ? TicTacToeGame.Turn.LOCAL : TicTacToeGame.Turn.REMOTE);
 
             if (myTurnFirst) board.setSymbols("X","O");
@@ -113,6 +122,7 @@ public class MatchHandler {
             frame.setCurrentOpponentName(opponent);
 
             board.setCloseCallback(() -> {
+                finishedBoards.put(client, board);
                 boards.remove(client);
                 matchStarted.remove(client);
                 SwingUtilities.invokeLater(() -> frame.closeGameBoard(board));
