@@ -4,12 +4,13 @@ import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MainFrame extends JFrame {
 
     private GameClient client;
-
     private final JPanel mainPanel;
     private final CardLayout cardLayout;
 
@@ -17,12 +18,14 @@ public class MainFrame extends JFrame {
     private JButton homeButton;
     private JButton logoutButton;
 
+    protected boolean inMatch = false;
+    private final Map<GameClient, String> selectedGameType = new HashMap<>();
+    private String currentOpponentName;
+
     public MainFrame() {
-        setTitle("TicTacToe Client");
+        setTitle("Game Client");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-
         setExtendedState(JFrame.MAXIMIZED_BOTH);
-
         setLayout(new BorderLayout());
 
         add(createHeaderPanel(), BorderLayout.NORTH);
@@ -32,7 +35,6 @@ public class MainFrame extends JFrame {
         mainPanel.setBackground(new Color(28, 28, 30));
 
         mainPanel.add(createLoginPanel(), "login");
-
         add(mainPanel, BorderLayout.CENTER);
 
         setVisible(true);
@@ -48,27 +50,13 @@ public class MainFrame extends JFrame {
         headerLabel.setFont(new Font("Arial", Font.BOLD, 20));
         headerLabel.setVisible(false);
 
-        JButton homeButton = createRoundedButton("Home", new Color(0, 123, 255), Color.WHITE);
+        homeButton = createRoundedButton("Home", new Color(0, 123, 255), Color.WHITE);
         homeButton.setVisible(false);
-        homeButton.addActionListener(e -> {
-            cardLayout.show(mainPanel, "gameSelector");
-            headerLabel.setText("");
-            headerLabel.setVisible(false);
-        });
+        homeButton.addActionListener(e -> handleHomeClick());
 
-        JButton logoutButton = createRoundedButton("Logout", new Color(220, 53, 69), Color.WHITE);
+        logoutButton = createRoundedButton("Logout", new Color(220, 53, 69), Color.WHITE);
         logoutButton.setVisible(false);
-        logoutButton.addActionListener(e -> {
-            client.send("logout");
-            client = null;
-            mainPanel.removeAll();
-            mainPanel.add(createLoginPanel(), "login");
-            cardLayout.show(mainPanel, "login");
-            headerLabel.setText("");
-            headerLabel.setVisible(false);
-            homeButton.setVisible(false);
-            logoutButton.setVisible(false);
-        });
+        logoutButton.addActionListener(e -> handleLogout());
 
         JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         leftPanel.setBackground(new Color(40, 40, 40));
@@ -82,12 +70,50 @@ public class MainFrame extends JFrame {
         header.add(leftPanel, BorderLayout.WEST);
         header.add(rightPanel, BorderLayout.EAST);
 
-        this.homeButton = homeButton;
-        this.logoutButton = logoutButton;
-
         return header;
     }
 
+    private void handleHomeClick() {
+        if (inMatch) {
+            int choice = JOptionPane.showConfirmDialog(this,
+                    "Are you sure you want to forfeit the match?", "Confirm",
+                    JOptionPane.YES_NO_OPTION);
+            if (choice != JOptionPane.YES_OPTION) return;
+
+            if (client != null) {
+                client.send("forfeit");  // correct server command
+            }
+
+            // Close current game board immediately
+            BoardGame currentBoard = null;
+            for (Component comp : mainPanel.getComponents()) {
+                if (comp instanceof BoardGame) {
+                    currentBoard = (BoardGame) comp;
+                    break;
+                }
+            }
+            if (currentBoard != null) closeGameBoard(currentBoard);
+
+            inMatch = false;
+        }
+        cardLayout.show(mainPanel, "gameSelector");
+        headerLabel.setText("");
+        headerLabel.setVisible(false);
+    }
+
+    private void handleLogout() {
+        if (inMatch && client != null) client.send("forfeit");
+        inMatch = false;
+        client = null;
+
+        mainPanel.removeAll();
+        mainPanel.add(createLoginPanel(), "login");
+        cardLayout.show(mainPanel, "login");
+        headerLabel.setText("");
+        headerLabel.setVisible(false);
+        homeButton.setVisible(false);
+        logoutButton.setVisible(false);
+    }
 
     private JPanel createLoginPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
@@ -102,7 +128,7 @@ public class MainFrame extends JFrame {
         ));
         loginBox.setPreferredSize(new Dimension(350, 260));
 
-        JLabel title = new JLabel("Voer je spelersnaam in:", SwingConstants.CENTER);
+        JLabel title = new JLabel("Enter your player name:", SwingConstants.CENTER);
         title.setFont(new Font("Arial", Font.BOLD, 18));
         title.setForeground(Color.WHITE);
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -134,7 +160,7 @@ public class MainFrame extends JFrame {
         loginButton.addActionListener(e -> {
             String playerName = nameField.getText().trim().toLowerCase();
             if (playerName.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Voer een geldige naam in.");
+                JOptionPane.showMessageDialog(this, "Enter a valid name.");
                 return;
             }
 
@@ -155,7 +181,7 @@ public class MainFrame extends JFrame {
                 logoutButton.setVisible(true);
 
             } catch (IOException ex) {
-                JOptionPane.showMessageDialog(this, "Kan niet verbinden: " + ex.getMessage());
+                JOptionPane.showMessageDialog(this, "Cannot connect: " + ex.getMessage());
                 loginButton.setEnabled(true);
             }
         });
@@ -165,10 +191,10 @@ public class MainFrame extends JFrame {
 
     private JPanel createGameSelectorPanel() {
         JPanel panel = new JPanel(new BorderLayout(20, 20));
-        panel.setBackground(new Color(28, 28, 30)); // dark background
+        panel.setBackground(new Color(28, 28, 30));
         panel.setBorder(BorderFactory.createEmptyBorder(20, 40, 40, 40));
 
-        JLabel welcomeLabel = new JLabel("Welkom, " + client.getPlayerName() + "!", SwingConstants.CENTER);
+        JLabel welcomeLabel = new JLabel("Welcome, " + client.getPlayerName() + "!", SwingConstants.CENTER);
         welcomeLabel.setFont(new Font("Arial", Font.BOLD, 28));
         welcomeLabel.setForeground(Color.WHITE);
         panel.add(welcomeLabel, BorderLayout.NORTH);
@@ -179,7 +205,6 @@ public class MainFrame extends JFrame {
         try {
             List<String> games = client.getGameList();
             for (String gameName : games) {
-
                 Color bgColor;
                 String iconPath;
                 switch (gameName.toLowerCase()) {
@@ -214,9 +239,8 @@ public class MainFrame extends JFrame {
                 URL iconURL = getClass().getResource(iconPath);
                 JLabel iconLabel = new JLabel();
                 iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
-                if (iconURL != null) {
-                    iconLabel.setIcon(new ImageIcon(iconURL));
-                } else {
+                if (iconURL != null) iconLabel.setIcon(new ImageIcon(iconURL));
+                else {
                     iconLabel.setText(gameName);
                     iconLabel.setForeground(Color.WHITE);
                     iconLabel.setFont(new Font("Arial", Font.BOLD, 16));
@@ -251,7 +275,7 @@ public class MainFrame extends JFrame {
                 gameGrid.add(card);
             }
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, "Kon geen gamelist ophalen: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Could not fetch gamelist: " + e.getMessage());
         }
 
         JScrollPane scrollPane = new JScrollPane(gameGrid);
@@ -261,7 +285,6 @@ public class MainFrame extends JFrame {
         scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
         panel.add(scrollPane, BorderLayout.CENTER);
-
         return panel;
     }
 
@@ -271,7 +294,7 @@ public class MainFrame extends JFrame {
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         panel.setBackground(new Color(28, 28, 30));
 
-        JLabel label = new JLabel("Kies modus voor " + gameName + ":", SwingConstants.CENTER);
+        JLabel label = new JLabel("Choose mode for " + gameName + ":", SwingConstants.CENTER);
         label.setForeground(Color.WHITE);
         label.setFont(new Font("Arial", Font.BOLD, 16));
         label.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -281,10 +304,10 @@ public class MainFrame extends JFrame {
         JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 0));
         buttonsPanel.setBackground(new Color(28, 28, 30));
 
-        JButton vsPlayerBtn = createRoundedButton("Spelen tegen speler", new Color(0, 123, 255), Color.WHITE);
-        vsPlayerBtn.setPreferredSize(new Dimension(180, 80)); // slightly bigger
-        JButton vsAIBtn = createRoundedButton("Spelen tegen AI", new Color(255, 193, 7), Color.WHITE);
-        vsAIBtn.setPreferredSize(new Dimension(180, 80)); // slightly bigger
+        JButton vsPlayerBtn = createRoundedButton("Play vs Player", new Color(0, 123, 255), Color.WHITE);
+        vsPlayerBtn.setPreferredSize(new Dimension(180, 80));
+        JButton vsAIBtn = createRoundedButton("Play vs AI", new Color(255, 193, 7), Color.WHITE);
+        vsAIBtn.setPreferredSize(new Dimension(180, 80));
 
         buttonsPanel.add(vsPlayerBtn);
         buttonsPanel.add(vsAIBtn);
@@ -316,42 +339,28 @@ public class MainFrame extends JFrame {
         vsPlayerBtn.addActionListener(e -> {
             randomBtn.setVisible(true);
             findBtn.setVisible(true);
-            statusLabel.setText("Kies Random of Find Player...");
+            statusLabel.setText("Choose Random or Find Player...");
         });
 
         randomBtn.addActionListener(e -> {
             randomBtn.setVisible(false);
             findBtn.setVisible(false);
             statusLabel.setText("Searching for a random opponent...");
+            statusLabel.setForeground(Color.YELLOW);
+
+            String gameType = gameName;
+            MatchHandler.setSelectedGameType(client.getPlayerName(), gameType);
             MatchHandler.setMode(client, MatchHandler.Mode.RANDOM);
-            client.subscribe(gameName);
 
-            new Thread(() -> {
-                try {
-                    boolean challengeSent = false;
-                    while (!challengeSent) {
-                        List<String> players = client.getPlayerList();
-
-                        for (String p : players) {
-                            if (!p.equalsIgnoreCase(client.getPlayerName())) {
-                                if (client.getPlayerName().compareToIgnoreCase(p) < 0) {
-                                    client.challenge(p, gameName);
-                                    statusLabel.setText("Challenged " + p + " — waiting for acceptance...");
-                                } else {
-                                    statusLabel.setText("Waiting for challenge from " + p + "...");
-                                }
-                                challengeSent = true;
-                                break;
-                            }
-                        }
-
-                        Thread.sleep(1500);
-                    }
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
-            }).start();
+            try {
+                client.subscribe(gameType);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                statusLabel.setText("Error subscribing for random match.");
+                statusLabel.setForeground(Color.RED);
+            }
         });
+
 
         findBtn.addActionListener(e -> {
             randomBtn.setVisible(false);
@@ -362,11 +371,13 @@ public class MainFrame extends JFrame {
 
             try {
                 List<String> players = client.getPlayerList();
-                if (!players.contains(opponentName)) {
+                boolean found = players.stream().anyMatch(p -> p.equalsIgnoreCase(opponentName));
+                if (!found) {
                     JOptionPane.showMessageDialog(this, "Player not found.");
                     return;
                 }
 
+                MatchHandler.setSelectedGameType(client.getPlayerName(), gameName);
                 MatchHandler.setMode(client, MatchHandler.Mode.FIND_PLAYER);
                 setCurrentOpponentName(opponentName);
 
@@ -378,21 +389,6 @@ public class MainFrame extends JFrame {
         });
         return panel;
     }
-
-    private String currentOpponentName;
-
-    public String getCurrentOpponentName() {
-        return currentOpponentName;
-    }
-
-    public void setCurrentOpponentName(String name) {
-        currentOpponentName = name;
-    }
-
-    public void clearCurrentOpponent() {
-        currentOpponentName = null;
-    }
-
 
     private void startAIMode(String gameName) {
         BoardGame gamePanel;
@@ -409,16 +405,17 @@ public class MainFrame extends JFrame {
                 return;
         }
 
+        inMatch = true;
         mainPanel.add(gamePanel, "currentGame");
         showCard("currentGame");
         setHeaderLabel("Playing " + gameName);
     }
 
-
-    public void closeGameBoard(TicTacToeGame board) {
+    public void closeGameBoard(BoardGame board) {
         if (board != null) {
             mainPanel.remove(board);
         }
+        inMatch = false;
         showCard("gameSelector");
         setHeaderLabel("");
         mainPanel.revalidate();
@@ -460,7 +457,20 @@ public class MainFrame extends JFrame {
         headerLabel.setVisible(!text.isEmpty());
     }
 
+    public String getCurrentOpponentName() {
+        return currentOpponentName;
+    }
+
+    public void setCurrentOpponentName(String name) {
+        currentOpponentName = name;
+    }
+
+    public void clearCurrentOpponent() {
+        currentOpponentName = null;
+    }
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(MainFrame::new);
     }
 }
+
