@@ -17,7 +17,6 @@ public abstract class BoardGame extends JPanel {
     }
 
     public boolean isCellEmpty(int r, int c) { return board[r][c].isEmpty(); }
-
     public void setCell(int r, int c, String symbol) { board[r][c] = symbol; }
 
     public String[][] getBoardState() {
@@ -33,4 +32,11 @@ public abstract class BoardGame extends JPanel {
                 if (board[r][c].isEmpty()) return false;
         return true;
     }
+
+    public abstract void updateBoardFromServer(String message);
+
+    protected Runnable closeCallback;
+    public void setCloseCallback(Runnable callback) { this.closeCallback = callback; }
+    public void dismissGameOverDialog() {}
+    public void resetBoardState() {}
 }
