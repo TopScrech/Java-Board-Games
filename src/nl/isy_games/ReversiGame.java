@@ -9,12 +9,13 @@ public class ReversiGame extends BoardGame {
     private final int cellSize = 80;
     private GameClient client;
     private boolean myTurnFirst;
+    private ReversiRules rules = new ReversiRules();
 
     public ReversiGame(GameClient client, boolean myTurnFirst) {
         super(8, 8);
         this.client = client;
         this.myTurnFirst = myTurnFirst;
-
+        
         cells = new JButton[rows][cols];
         setLayout(new GridLayout(rows, cols, 2, 2));
         setBackground(new Color(28, 28, 30));
@@ -32,6 +33,7 @@ public class ReversiGame extends BoardGame {
         buildBoard();
         setupInitialPieces();
         setVisible(true);
+        //rules.checkAllDirections(board,4,4);
     }
 
     private void buildBoard() {

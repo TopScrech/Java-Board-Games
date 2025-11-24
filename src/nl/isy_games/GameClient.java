@@ -164,7 +164,6 @@ public class GameClient {
         System.out.println("DEBUG: Move sent: " + move);
     }
 
-
     public interface ServerListener {
         void handleMessage(String message);
     }
