@@ -29,23 +29,35 @@ public class ReversiGame extends BoardGame {
         cells = new JButton[rows][cols];
         setLayout(new GridLayout(rows, cols, 2, 2));
         setBackground(new Color(28, 28, 30));
+
         buildBoard();
         setupInitialPieces();
         setVisible(true);
     }
-
+    
     private void buildBoard() {
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
+
                 JButton btn = new JButton();
                 btn.setPreferredSize(new Dimension(cellSize, cellSize));
                 btn.setBackground(new Color(28, 28, 30));
                 btn.setOpaque(true);
                 btn.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+
+                final int row = r;
+                final int col = c;
+
+                btn.addActionListener(e -> handleCellClick(row, col));
+
                 cells[r][c] = btn;
                 add(btn);
             }
         }
+    }
+
+    private void handleCellClick(int row, int col) {
+        System.out.println("Klik op: " + row + ", " + col);
     }
 
     private void setupInitialPieces() {
@@ -63,15 +75,21 @@ public class ReversiGame extends BoardGame {
     private void updateUICell(int r, int c) {
         String val = board[r][c];
         JButton btn = cells[r][c];
+
         btn.setText(val);
-        if (val.equals("X")) btn.setForeground(Color.BLACK);
-        else if (val.equals("O")) btn.setForeground(Color.WHITE);
-        else btn.setForeground(Color.BLACK);
+
+        if (val.equals("X")) {
+            btn.setForeground(Color.BLACK);
+        } else if (val.equals("O")) {
+            btn.setForeground(Color.WHITE);
+        } else {
+            btn.setForeground(Color.BLACK);
+        }
     }
 
     @Override
     public boolean isCellEmpty(int row, int col) {
-        return true;
+        return board[row][col].equals("");
     }
 
     @Override
