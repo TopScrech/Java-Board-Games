@@ -67,12 +67,45 @@ public class ReversiRules{
         }
         //diagonaal check
         //-x -y check
-
+        for(int i = col-1, j = row-1; i >= 0 && j >= 0; i--, j--){
+            int[] arr = {j, i};
+            if(board[j][i] != piece && board[j][i] != ""){
+                tiles.add(arr);
+            }
+            if(board[j][i] == piece){
+                break;
+            }
+        }
         //+x -y check
-
+        for(int i = col+1, j = row-1; i <= 7 && j >= 0; i--, j--){
+            int[] arr = {j, i};
+            if(board[j][i] != piece && board[j][i] != ""){
+                tiles.add(arr);
+            }
+            if(board[j][i] == piece){
+                break;
+            }
+        }
         //-x +y check
-
-        //-x -y check
+        for(int i = col-1, j = row+1; i >= 0 && j <= 7; i--, j--){
+            int[] arr = {j, i};
+            if(board[j][i] != piece && board[j][i] != ""){
+                tiles.add(arr);
+            }
+            if(board[j][i] == piece){
+                break;
+            }
+        }
+        //+x +y check
+        for(int i = col+1, j = row+1; i <= 7 && j <= 7; i--, j--){
+            int[] arr = {j, i};
+            if(board[j][i] != piece && board[j][i] != ""){
+                tiles.add(arr);
+            }
+            if(board[j][i] == piece){
+                break;
+            }
+        }
         return tiles;
     }
 
