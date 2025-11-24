@@ -1,7 +1,11 @@
 package nl.isy_games;
 
 import javax.swing.*;
+
+import nl.isy_games.TicTacToeGame.Turn;
+
 import java.awt.*;
+import java.util.ArrayList;
 
 public class ReversiGame extends BoardGame {
 
@@ -11,10 +15,31 @@ public class ReversiGame extends BoardGame {
     private boolean myTurnFirst;
     private ReversiRules rules = new ReversiRules();
 
+    private String mySymbol;
+    private String opponentSymbol;
+    private String piece;
+
+    private Turn currentTurn;
+
     public ReversiGame(GameClient client, boolean myTurnFirst) {
         super(8, 8);
         this.client = client;
         this.myTurnFirst = myTurnFirst;
+        if(myTurnFirst){
+            this.mySymbol = "X";
+            this.opponentSymbol = "O";
+        }else{
+            this.mySymbol = "O";
+            this.opponentSymbol = "X";
+        }   
+        
+        if (client == null) {
+            this.currentTurn = myTurnFirst ? Turn.PLAYER : Turn.OPPONENT;
+        } else {
+            this.currentTurn = myTurnFirst ? Turn.LOCAL : Turn.REMOTE;
+        }
+
+       setPiece();
         
         cells = new JButton[rows][cols];
         setLayout(new GridLayout(rows, cols, 2, 2));
@@ -33,7 +58,16 @@ public class ReversiGame extends BoardGame {
         buildBoard();
         setupInitialPieces();
         setVisible(true);
-        //rules.checkAllDirections(board,4,4);
+        setCell(4, 5, "X");
+        ArrayList<int[]> tiles = rules.checkAllDirections(board,4,5,"X");
+        for(int[] e : tiles){
+            setCell(e[0], e[1], "X");
+        }
+        setCell(2, 2, "X");
+        ArrayList<int[]> tiles2 = rules.checkAllDirections(board,2,2,"X");
+        for(int[] e : tiles2){
+            setCell(e[0], e[1], "X");
+        }
     }
 
     private void buildBoard() {
@@ -82,9 +116,21 @@ public class ReversiGame extends BoardGame {
         updateUICell(row, col);
     }
 
+    public void setPiece(){
+        if(currentTurn == Turn.PLAYER){
+            piece = mySymbol;
+        }else{
+            piece = opponentSymbol;
+        }
+    }
+
     @Override
     public String[][] getBoardState() {
         return board;
+    }
+
+    public void setTurn(Turn t) {
+        this.currentTurn = t;
     }
 
     public void updateBoardFromServer(String message) {

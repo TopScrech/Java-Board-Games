@@ -19,26 +19,51 @@ public class ReversiRules{
     }
 
     //check x, y en diagonalen op het bord
-    public void checkAllDirections(String[][] board, int row, int col){
-        ArrayList<String> tiles = new ArrayList<String>();
-        
+    public ArrayList<int[]> checkAllDirections(String[][] board, int row, int col, String piece){
+        ArrayList<int[]> tiles = new ArrayList<int[]>();
+
         //horizontaal check
-        //check alle x voor startpunt
+        //check alle -x voor startpunt
         for(int i = col-1; i >= 0; i--){
-            tiles.add(board[row][i]);
+            int[] arr = {row, i};
+            if(board[row][i] != piece && board[row][i] != ""){
+                tiles.add(arr);
+            }
+            if(board[row][i] == piece){
+                break;
+            }
+           
         }
-        //check alle x na startpunt
+        //check alle +x na startpunt
         for(int i = col+1; i <= 7; i++){
-            tiles.add(board[row][i]);
+            int[] arr = {row, i};
+            if(board[row][i] != piece && board[row][i] != ""){
+                tiles.add(arr);
+            }
+            if(board[row][i] == piece){
+                break;
+            }
         }
         //verticaal check
-        //check alle y boven startpunt
+        //check alle -y boven startpunt
         for(int i = row-1; i >= 0; i--){
-            tiles.add(board[i][col]);
+            int[] arr = {i, col};
+            if(board[i][col] != piece && board[i][col] != ""){
+                tiles.add(arr);
+            }
+            if(board[i][col] == piece){
+                break;
+            }
         }
-        //check alle y onder startpunt
+        //check alle +y onder startpunt
         for(int i = row+1; i<= 7; i++){
-            tiles.add(board[i][col]);
+            int[] arr = {i, col};
+            if(board[i][col] != piece && board[i][col] != ""){
+                tiles.add(arr);
+            }
+            if(board[i][col] == piece){
+                break;
+            }
         }
         //diagonaal check
         //-x -y check
@@ -48,8 +73,7 @@ public class ReversiRules{
         //-x +y check
 
         //-x -y check
-        
-        System.out.println(tiles);
+        return tiles;
     }
 
     //return score van beide kleuren
