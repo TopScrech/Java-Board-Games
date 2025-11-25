@@ -28,7 +28,7 @@ public class TicTacToeGame extends BoardGame {
     private JLabel turnLabel;
 
     private final GameClient client;
-    private final int cellSize = 165;
+    private final int cellSize = 200;
     private static final int AI_MOVE_DELAY_MS = 1000;
     private static final int AI_RETRY_DELAY_MS = 100;
 
