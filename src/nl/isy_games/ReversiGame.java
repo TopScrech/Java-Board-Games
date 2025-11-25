@@ -34,7 +34,7 @@ public class ReversiGame extends BoardGame {
         setupInitialPieces();
         setVisible(true);
     }
-    
+
     private void buildBoard() {
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
@@ -104,8 +104,38 @@ public class ReversiGame extends BoardGame {
     }
 
     public void updateBoardFromServer(String message) {
+        if (message.contains("SVR GAME MOVE")) {
+            try {
+                String moveIndexStr = message.replaceAll("[^0-9]", "");
+                int index = Integer.parseInt(moveIndexStr);
+                int row = index / 8;
+                int col = index % 8;
+
+                setCell(row, col, "O");
+
+                myTurnFirst = true;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else if (message.contains("SVR GAME YOURTURN")) {
+            myTurnFirst = true;
+        }
     }
 
     public void setCloseCallback(Runnable callback) {
+    }
+
+    public void applyMove(int row, int col, String symbol) {
+    }
+
+    public boolean hasLegalMove(String symbol) {
+        return false;
+    }
+
+    public void checkGameOver() {
+    }
+
+    public int[] getScore() {
+        return new int[]{0, 0};
     }
 }
