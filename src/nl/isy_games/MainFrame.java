@@ -913,7 +913,7 @@ public class MainFrame extends JFrame {
                 break;
             case "reversi":
             case "othello":
-                gamePanel = new OthelloGame();
+                gamePanel = new ReversiGame();
                 break;
             default:
                 JOptionPane.showMessageDialog(this, "Game not implemented yet.");
