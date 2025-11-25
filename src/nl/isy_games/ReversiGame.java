@@ -58,16 +58,22 @@ public class ReversiGame extends BoardGame {
         buildBoard();
         setupInitialPieces();
         setVisible(true);
-        setCell(4, 5, "X");
-        ArrayList<int[]> tiles = rules.checkAllDirections(board,4,5,"X");
-        for(int[] e : tiles){
-            setCell(e[0], e[1], "X");
-        }
-        setCell(2, 2, "X");
-        ArrayList<int[]> tiles2 = rules.checkAllDirections(board,2,2,"X");
-        for(int[] e : tiles2){
-            setCell(e[0], e[1], "X");
-        }
+        //setCell(4, 5, "X");
+        //ArrayList<int[]> tiles = rules.checkAllDirections(board,4,5,"X");
+        //for(int[] e : tiles){
+            //setCell(e[0], e[1], "X");
+        //}
+        //setCell(2, 2, "X");
+        //ArrayList<int[]> tiles2 = rules.checkAllDirections(board,2,2,"X");
+        //for(int[] e : tiles2){
+            //setCell(e[0], e[1], "X");
+        //}
+        /*ArrayList<int[]> legalMoves = rules.getLegalMoves(board, "O");
+        for(int[] e : legalMoves){
+            JButton btn = cells[e[0]][e[1]];
+            btn.setBackground(new Color(0,255,0));
+        }*/
+        //rules.hasLegalMove(legalMoves.size());
     }
 
     private void buildBoard() {
