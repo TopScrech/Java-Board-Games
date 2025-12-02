@@ -55,6 +55,7 @@ public class ReversiGame extends BoardGame {
         cells = new JButton[rows][cols];
         setLayout(new GridLayout(rows, cols, 2, 2));
         setBackground(new Color(28, 28, 30));
+
         buildBoard();
         setupInitialPieces();
         setVisible(true);
@@ -79,15 +80,75 @@ public class ReversiGame extends BoardGame {
     private void buildBoard() {
         for (int r = 0; r < rows; r++) {
             for (int c = 0; c < cols; c++) {
-                JButton btn = new JButton();
+
+                final int row = r;
+                final int col = c;
+
+                JButton btn = new JButton(){
+                    @Override
+                    protected void paintComponent(Graphics g) {
+                        super.paintComponent(g);
+
+                        Graphics2D g2 = (Graphics2D) g.create();
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                        g2.setColor(new Color(44, 44, 46));
+                        g2.fillRect(0, 0, getWidth(), getHeight());
+
+                        g2.setColor(new Color(20, 20, 20, 120));
+                        g2.setStroke(new BasicStroke(1));
+                        g2.drawRect(0, 0, getWidth()-1, getHeight()-1);
+
+                        String val = board[row][col];
+
+                        int padding = Math.max(8, Math.min(getWidth(), getHeight()) / 8);
+                        int diameter = Math.min(getWidth(), getHeight()) - padding *2;
+                        int x = (getWidth() - diameter) / 2;
+                        int y = (getHeight() - diameter) / 2;
+
+                        if (val.equals("X")) {
+                            g2.setColor(new Color (0, 0, 0, 100));
+                            g2.fillOval(x+2, y+2, diameter, diameter);
+
+                            g2.setColor(Color.BLACK);
+                            g2.fillOval(x, y, diameter, diameter);
+
+                            g2.setColor(new Color(60, 60, 60));
+                            g2.setStroke(new BasicStroke(2));
+                            g2.drawOval(x, y, diameter, diameter);
+
+                        } else if (val.equals("O")) {
+                            g2.setColor(new Color( 0, 0, 0, 70 ));
+                            g2.fillOval(x+2, y+2, diameter, diameter);
+
+                            g2.setColor(Color.WHITE);
+                            g2.fillOval(x, y, diameter, diameter);
+
+                            g2.setColor(new Color(180, 180, 180));
+                            g2.setStroke(new BasicStroke(2));
+                            g2.drawOval(x, y, diameter, diameter);
+                    }
+                        g2.dispose();
+                    }
+
+                };
+
                 btn.setPreferredSize(new Dimension(cellSize, cellSize));
-                btn.setBackground(new Color(28, 28, 30));
+                btn.setBackground(new Color(34, 139, 34));
+                btn.setFocusPainted(false);
                 btn.setOpaque(true);
-                btn.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+                btn.setBorder(BorderFactory.createLineBorder(new Color(20, 20, 20)));
+                btn.setContentAreaFilled(false);
+                btn.addActionListener(e -> handleCellClick(row, col));
+
                 cells[r][c] = btn;
                 add(btn);
             }
         }
+    }
+
+    private void handleCellClick(int row, int col) {
+        System.out.println("Klik op: " + row + ", " + col);
     }
 
     private void setupInitialPieces() {
@@ -103,17 +164,15 @@ public class ReversiGame extends BoardGame {
     }
 
     private void updateUICell(int r, int c) {
-        String val = board[r][c];
-        JButton btn = cells[r][c];
-        btn.setText(val);
-        if (val.equals("X")) btn.setForeground(Color.BLACK);
-        else if (val.equals("O")) btn.setForeground(Color.WHITE);
-        else btn.setForeground(Color.BLACK);
+        if (cells[r][c] != null) {
+            cells[r][c].repaint();
+        }
     }
+
 
     @Override
     public boolean isCellEmpty(int row, int col) {
-        return true;
+        return board[row][col].equals("");
     }
 
     @Override
@@ -140,8 +199,38 @@ public class ReversiGame extends BoardGame {
     }
 
     public void updateBoardFromServer(String message) {
+        if (message.contains("SVR GAME MOVE")) {
+            try {
+                String moveIndexStr = message.replaceAll("[^0-9]", "");
+                int index = Integer.parseInt(moveIndexStr);
+                int row = index / 8;
+                int col = index % 8;
+
+                setCell(row, col, "O");
+
+                myTurnFirst = true;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else if (message.contains("SVR GAME YOURTURN")) {
+            myTurnFirst = true;
+        }
     }
 
     public void setCloseCallback(Runnable callback) {
+    }
+
+    public void applyMove(int row, int col, String symbol) {
+    }
+
+    public boolean hasLegalMove(String symbol) {
+        return false;
+    }
+
+    public void checkGameOver() {
+    }
+
+    public int[] getScore() {
+        return new int[]{0, 0};
     }
 }
