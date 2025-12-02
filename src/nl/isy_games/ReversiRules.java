@@ -5,7 +5,7 @@ import java.util.ArrayList;
 public class ReversiRules{
 
     //haal alle legal moves op en return ze
-     //haal alle legal moves op en return ze
+    //haal alle legal moves op en return ze
     public ArrayList<int[]> getLegalMoves(String[][] board, String piece){
         ArrayList<int[]> tiles = new ArrayList<int[]>();
         ArrayList<int[]> legalMoves = new ArrayList<int[]>();
@@ -58,9 +58,11 @@ public class ReversiRules{
         for(int[] e : tiles){
             ArrayList<int[]> tempArray = new ArrayList<int[]>();
             tempArray.addAll(checkAllDirections(board, e[0], e[1], piece));
-            System.out.println(tempArray.size());
+            if(tempArray.size() > 0){
+                legalMoves.add(e);
+            }
         }
-        return tiles;
+        return legalMoves;
     }
 
     //return of player een move kan doen
@@ -79,6 +81,13 @@ public class ReversiRules{
     public ArrayList<int[]> checkAllDirections(String[][] board, int row, int col, String piece){
         ArrayList<int[]> tiles = new ArrayList<int[]>();
         ArrayList<int[]> tempArray = new ArrayList<int[]>();
+        ArrayList<int[]> tempArray1 = new ArrayList<int[]>();
+        ArrayList<int[]> tempArray2 = new ArrayList<int[]>();
+        ArrayList<int[]> tempArray3 = new ArrayList<int[]>();
+        ArrayList<int[]> tempArray4 = new ArrayList<int[]>();
+        ArrayList<int[]> tempArray5 = new ArrayList<int[]>();
+        ArrayList<int[]> tempArray6 = new ArrayList<int[]>();
+        ArrayList<int[]> tempArray7 = new ArrayList<int[]>();
 
         //horizontaal check
         //check alle -x voor startpunt
@@ -103,17 +112,17 @@ public class ReversiRules{
         for(int i = col+1; i <= 7; i++){
             int[] arr = {row, i};
             if(board[row][i] != piece && board[row][i] != ""){
-                tempArray.add(arr);
+                tempArray1.add(arr);
             }
             if(board[row][i] == piece){
-                for(int[] e : tempArray){
+                for(int[] e : tempArray1){
                     tiles.add(e);
                 }
-                tempArray.clear();
+                tempArray1.clear();
                 break;
             }
             if(board[row][i] == ""){
-                tempArray.clear();
+                tempArray1.clear();
                 break;
             }   
         }
@@ -122,54 +131,54 @@ public class ReversiRules{
         for(int i = row-1; i >= 0; i--){
             int[] arr = {i, col};
             if(board[i][col] != piece && board[i][col] != ""){
-                tempArray.add(arr);
+                tempArray2.add(arr);
             }
             if(board[i][col] == piece){
-                for(int[] e : tempArray){
+                for(int[] e : tempArray2){
                     tiles.add(e);
                 }
-                tempArray.clear();
+                tempArray2.clear();
                 break;
             } 
-            if(board[row][i] == ""){
-                tempArray.clear();
+            /*if(board[row][i] == ""){
+                tempArray2.clear();
                 break;
-            }   
+            }*/   
         }
         //check alle +y onder startpunt
         for(int i = row+1; i<= 7; i++){
             int[] arr = {i, col};
             if(board[i][col] != piece && board[i][col] != ""){
-                tempArray.add(arr);
+                tempArray3.add(arr);
             }
             if(board[i][col] == piece){
-                for(int[] e : tempArray){
+                for(int[] e : tempArray3){
                     tiles.add(e);
                 }
-                tempArray.clear();
+                tempArray3.clear();
                 break;
             }
-            if(board[row][i] == ""){
-                tempArray.clear();
+            /*if(board[row][i] == ""){
+                tempArray3.clear();
                 break;
-            }   
+            }*/   
         }
         //diagonaal check
         //-x -y check
         for(int i = col-1, j = row-1; i >= 0 && j >= 0; i--, j--){
             int[] arr = {j, i};
             if(board[j][i] != piece && board[j][i] != ""){
-                tempArray.add(arr);
+                tempArray4.add(arr);
             }
             if(board[j][i] == piece){
-                for(int[] e : tempArray){
+                for(int[] e : tempArray4){
                     tiles.add(e);
                 }
-                tempArray.clear();
+                tempArray4.clear();
                 break;
             } 
             if(board[row][i] == ""){
-                tempArray.clear();
+                tempArray4.clear();
                 break;
             }   
         }
@@ -177,17 +186,17 @@ public class ReversiRules{
         for(int i = col+1, j = row-1; i <= 7 && j >= 0; i--, j--){
             int[] arr = {j, i};
             if(board[j][i] != piece && board[j][i] != ""){
-                tempArray.add(arr);
+                tempArray5.add(arr);
             }
             if(board[j][i] == piece){
-                for(int[] e : tempArray){
+                for(int[] e : tempArray5){
                     tiles.add(e);
                 }
-                tempArray.clear();
+                tempArray5.clear();
                 break;
             }
             if(board[row][i] == ""){
-                tempArray.clear();
+                tempArray5.clear();
                 break;
             }   
         }
@@ -195,17 +204,17 @@ public class ReversiRules{
         for(int i = col-1, j = row+1; i >= 0 && j <= 7; i--, j--){
             int[] arr = {j, i};
             if(board[j][i] != piece && board[j][i] != ""){
-                tempArray.add(arr);
+                tempArray6.add(arr);
             }
             if(board[j][i] == piece){
-                for(int[] e : tempArray){
+                for(int[] e : tempArray6){
                     tiles.add(e);
                 }
-                tempArray.clear();
+                tempArray6.clear();
                 break;
             }
             if(board[row][i] == ""){
-                tempArray.clear();
+                tempArray6.clear();
                 break;
             }   
         }
@@ -213,17 +222,17 @@ public class ReversiRules{
         for(int i = col+1, j = row+1; i <= 7 && j <= 7; i--, j--){
             int[] arr = {j, i};
             if(board[j][i] != piece && board[j][i] != ""){
-                tempArray.add(arr);
+                tempArray7.add(arr);
             }
             if(board[j][i] == piece){
-                for(int[] e : tempArray){
+                for(int[] e : tempArray7){
                     tiles.add(e);
                 }
-                tempArray.clear();
+                tempArray7.clear();
                 break;
             }
             if(board[row][i] == ""){
-                tempArray.clear();
+                tempArray7.clear();
                 break;
             }   
         }

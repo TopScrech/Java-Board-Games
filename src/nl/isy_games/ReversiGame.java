@@ -68,11 +68,11 @@ public class ReversiGame extends BoardGame {
         //for(int[] e : tiles2){
             //setCell(e[0], e[1], "X");
         //}
-        /*ArrayList<int[]> legalMoves = rules.getLegalMoves(board, "O");
+        ArrayList<int[]> legalMoves = rules.getLegalMoves(board, "O");
         for(int[] e : legalMoves){
             JButton btn = cells[e[0]][e[1]];
             btn.setBackground(new Color(0,255,0));
-        }*/
+        }
         //rules.hasLegalMove(legalMoves.size());
     }
 
