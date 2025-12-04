@@ -148,8 +148,38 @@ public class ReversiGame extends BoardGame {
     }
 
     private void handleCellClick(int row, int col) {
-        System.out.println("Klik op: " + row + ", " + col);
+    System.out.println("Klik op: " + row + ", " + col);
+
+    if (currentTurn == Turn.REMOTE) {
+        System.out.println("Niet jouw beurt!");
+        return;
     }
+
+    ArrayList<int[]> legal = rules.getLegalMoves(board, mySymbol);
+
+    boolean isLegal = false;
+    for (int[] move : legal) {
+        if (move[0] == row && move[1] == col) {
+            isLegal = true;
+            break;
+        }
+    }
+
+    if (!isLegal) {
+        System.out.println("Ongeldige zet");
+        return;
+    }
+
+    applyMove(row, col, mySymbol);
+
+    if (client != null) {
+        int index = row * 8 + col;
+        client.sendMove(index);
+    }
+
+    currentTurn = Turn.REMOTE;
+}
+
 
     private void setupInitialPieces() {
         setCell(3, 3, "O");
@@ -198,22 +228,28 @@ public class ReversiGame extends BoardGame {
         this.currentTurn = t;
     }
 
+    @Override
     public void updateBoardFromServer(String message) {
         if (message.contains("SVR GAME MOVE")) {
             try {
                 String moveIndexStr = message.replaceAll("[^0-9]", "");
                 int index = Integer.parseInt(moveIndexStr);
+
                 int row = index / 8;
                 int col = index % 8;
 
-                setCell(row, col, "O");
+                applyMove(row, col, opponentSymbol);
 
-                myTurnFirst = true;
+                currentTurn = Turn.LOCAL;
+
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        } else if (message.contains("SVR GAME YOURTURN")) {
-            myTurnFirst = true;
+        }
+
+        else if (message.contains("SVR GAME YOURTURN")) {
+            currentTurn = Turn.LOCAL;
+            System.out.println("Jij bent aan zet!");
         }
     }
 
@@ -221,11 +257,21 @@ public class ReversiGame extends BoardGame {
     }
 
     public void applyMove(int row, int col, String symbol) {
+        setCell(row, col, symbol);
+
+        ArrayList<int[]> flips = rules.checkAllDirections(board, row, col, symbol);
+        for (int[] pos : flips) {
+            setCell(pos[0], pos[1], symbol);
+        }
+
+        repaint();
     }
 
+
     public boolean hasLegalMove(String symbol) {
-        return false;
+        return rules.getLegalMoves(board, symbol).size() > 0;
     }
+
 
     public void checkGameOver() {
     }
