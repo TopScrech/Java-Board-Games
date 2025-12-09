@@ -133,7 +133,13 @@ public class MainFrame extends JFrame {
 
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
-                handleHomeClick();
+                if (text.equals("Settings")){
+                    openSettingsPage();
+                } else if (text.equals("Home")) {
+                    handleHomeClick();
+                } else {
+                    handleHomeClick();
+                }
             }
         });
 
@@ -216,6 +222,24 @@ public class MainFrame extends JFrame {
         headerLabel.setText("");
         headerLabel.setVisible(false);
     }
+
+    private void openSettingsPage() {
+        JPanel settingsPanel = new JPanel();
+        settingsPanel.setBackground(new Color(28, 28, 30));
+        settingsPanel.setLayout(new BoxLayout(settingsPanel, BoxLayout.Y_AXIS));
+        settingsPanel.setBorder(BorderFactory.createEmptyBorder(30, 40, 30, 40));
+
+        JLabel title = new JLabel("Settings", SwingConstants.LEFT);
+        title.setForeground(Color.WHITE);
+        title.setFont(new Font("Arial", Font.BOLD, 24));
+        settingsPanel.add(title);
+
+        settingsPanel.add(Box.createVerticalStrut(20));
+
+        mainPanel.add(settingsPanel, "settings");
+        showCard("settings");
+    }
+
 
     private void handleLogout() {
         if (inMatch && client != null) client.send("forfeit");
@@ -571,7 +595,7 @@ public class MainFrame extends JFrame {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 0;
-        gbc.insets = new Insets(10, 10, 10, 10); // spacing
+        gbc.insets = new Insets(10, 10, 10, 10);
         gbc.anchor = GridBagConstraints.NORTHWEST;
 
         int cols = 4;
@@ -700,11 +724,9 @@ public class MainFrame extends JFrame {
             filtered.add(game);
         }
 
-        // Sort games
         if (sortBy.equals("Name")) {
             filtered.sort(Comparator.comparing(g -> g.name));
         } else if (sortBy.equals("Popularity")) {
-            // You can add popularity field to GameData
             filtered.sort(Comparator.comparing(g -> g.name));
         }
 
@@ -778,10 +800,8 @@ public class MainFrame extends JFrame {
         statusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(statusLabel);
 
-        // Add panel to wrapper at NORTH to stick everything to the top
         wrapper.add(panel, BorderLayout.NORTH);
 
-        // Mode button actions
         allModesBtn.addActionListener(e -> {
             updateModeButtonStates(allModesBtn, pvpBtn, aiBtn);
             aiCard.setVisible(true);
@@ -913,7 +933,7 @@ public class MainFrame extends JFrame {
                 break;
             case "reversi":
             case "othello":
-                gamePanel = new ReversiGame();
+                gamePanel = new OthelloGame(null, true);
                 break;
             default:
                 JOptionPane.showMessageDialog(this, "Game not implemented yet.");
@@ -988,4 +1008,3 @@ public class MainFrame extends JFrame {
         SwingUtilities.invokeLater(MainFrame::new);
     }
 }
-
