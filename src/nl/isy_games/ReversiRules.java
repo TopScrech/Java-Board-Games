@@ -4,248 +4,71 @@ import java.util.ArrayList;
 
 public class ReversiRules{
 
-    //haal alle legal moves op en return ze
-    //haal alle legal moves op en return ze
     public ArrayList<int[]> getLegalMoves(String[][] board, String piece){
         ArrayList<int[]> tiles = new ArrayList<int[]>();
         ArrayList<int[]> legalMoves = new ArrayList<int[]>();
-        String pieceCheck;
-        //check alle tiles waar een legal move gedaan kan worden.
-        //return alle tiles die voldoen aan eisen
-        if(piece == "X"){
-            pieceCheck = "O";
-        }else{
-            pieceCheck = "X";
-        }
-        for(int i = 0; i < 7; i++){
-            for(int j = 0; j < 7; j++){
-                if(board[i][j] == ""){
-                    if(i+1 <= 7 && board[i+1][j] == pieceCheck){
-                        int[] arr = {i, j};
-                        tiles.add(arr);
-                    }   
-                    if(i-1 > 0 && board[i-1][j] == pieceCheck ){
-                        int[] arr = {i, j};
-                        tiles.add(arr);
-                    }
-                    if(j+1 <= 7 && board[i][j+1] == pieceCheck){
-                        int[] arr = {i, j};
-                        tiles.add(arr);
-                    }
-                    if(j-1 > 0 && board[i][j-1] == pieceCheck){
-                        int[] arr = {i, j};
-                        tiles.add(arr);
-                    }
-                    if(i-1 > 0 && j-1 > 0 && board[i-1][j-1] == pieceCheck){
-                        int[] arr = {i, j};
-                        tiles.add(arr);
-                    }
-                    if(i+1 <= 7 && j-1 > 0 && board[i+1][j-1] == pieceCheck){
-                        int[] arr = {i, j};
-                        tiles.add(arr);
-                    }
-                    if(i-1 > 0 && j+1 <= 7 && board[i-1][j+1] == pieceCheck){
-                        int[] arr = {i, j};
-                        tiles.add(arr);
-                    }
-                    if(i+1 <= 7 && j+1 <= 7 && board[i+1][j+1] == pieceCheck ){
-                        int[] arr = {i, j};
-                        tiles.add(arr);
-                    }
+        String pieceCheck = piece.equals("X") ? "O" : "X";
+
+        for(int i = 0; i < 8; i++){
+            for(int j = 0; j < 8; j++){
+                if(board[i][j].equals("")){
+                    if(i+1 < 8 && board[i+1][j].equals(pieceCheck)) tiles.add(new int[]{i,j});
+                    if(i-1 >= 0 && board[i-1][j].equals(pieceCheck)) tiles.add(new int[]{i,j});
+                    if(j+1 < 8 && board[i][j+1].equals(pieceCheck)) tiles.add(new int[]{i,j});
+                    if(j-1 >= 0 && board[i][j-1].equals(pieceCheck)) tiles.add(new int[]{i,j});
+                    if(i-1 >= 0 && j-1 >= 0 && board[i-1][j-1].equals(pieceCheck)) tiles.add(new int[]{i,j});
+                    if(i+1 < 8 && j-1 >= 0 && board[i+1][j-1].equals(pieceCheck)) tiles.add(new int[]{i,j});
+                    if(i-1 >= 0 && j+1 < 8 && board[i-1][j+1].equals(pieceCheck)) tiles.add(new int[]{i,j});
+                    if(i+1 < 8 && j+1 < 8 && board[i+1][j+1].equals(pieceCheck)) tiles.add(new int[]{i,j});
                 }
             }
         }
+
         for(int[] e : tiles){
-            ArrayList<int[]> tempArray = new ArrayList<int[]>();
-            tempArray.addAll(checkAllDirections(board, e[0], e[1], piece));
-            if(tempArray.size() > 0){
+            ArrayList<int[]> tempArray = checkAllDirections(board, e[0], e[1], piece);
+            if(!tempArray.isEmpty()){
                 legalMoves.add(e);
             }
         }
+
         return legalMoves;
     }
 
-    //return of player een move kan doen
     public boolean hasLegalMove(int legalMoves){
-        if(legalMoves > 0){
-            return true;
-        }
-        return false;
+        return legalMoves > 0;
     }
 
-    public void applyMove(int[][] board){
+    public void applyMove(int[][] board){ }
 
-    }
-
-    //check x, y en diagonalen op het bord
     public ArrayList<int[]> checkAllDirections(String[][] board, int row, int col, String piece){
-        ArrayList<int[]> tiles = new ArrayList<int[]>();
-        ArrayList<int[]> tempArray = new ArrayList<int[]>();
-        ArrayList<int[]> tempArray1 = new ArrayList<int[]>();
-        ArrayList<int[]> tempArray2 = new ArrayList<int[]>();
-        ArrayList<int[]> tempArray3 = new ArrayList<int[]>();
-        ArrayList<int[]> tempArray4 = new ArrayList<int[]>();
-        ArrayList<int[]> tempArray5 = new ArrayList<int[]>();
-        ArrayList<int[]> tempArray6 = new ArrayList<int[]>();
-        ArrayList<int[]> tempArray7 = new ArrayList<int[]>();
+        ArrayList<int[]> tiles = new ArrayList<>();
 
-        //horizontaal check
-        //check alle -x voor startpunt
-        for(int i = col-1; i >= 0; i--){
-            int[] arr = {row, i};
-            if(board[row][i] != piece && board[row][i] != ""){
-                tempArray.add(arr);
-            }   
-            if(board[row][i] == piece){
-                for(int[] e : tempArray){
-                    tiles.add(e);
+        int[][] directions = {
+                {-1,0},{1,0},{0,-1},{0,1},
+                {-1,-1},{-1,1},{1,-1},{1,1}
+        };
+
+        for(int[] dir : directions){
+            int r = row + dir[0];
+            int c = col + dir[1];
+            ArrayList<int[]> temp = new ArrayList<>();
+
+            while(r >= 0 && r < 8 && c >= 0 && c < 8){
+                if(board[r][c].equals("")) break;
+                if(board[r][c].equals(piece)){
+                    tiles.addAll(temp);
+                    break;
                 }
-                tempArray.clear();
-                break;
+                temp.add(new int[]{r,c});
+                r += dir[0];
+                c += dir[1];
             }
-            if(board[row][i] == ""){
-                tempArray.clear();
-                break;
-            }        
         }
-        //check alle +x na startpunt
-        for(int i = col+1; i <= 7; i++){
-            int[] arr = {row, i};
-            if(board[row][i] != piece && board[row][i] != ""){
-                tempArray1.add(arr);
-            }
-            if(board[row][i] == piece){
-                for(int[] e : tempArray1){
-                    tiles.add(e);
-                }
-                tempArray1.clear();
-                break;
-            }
-            if(board[row][i] == ""){
-                tempArray1.clear();
-                break;
-            }   
-        }
-        //verticaal check
-        //check alle -y boven startpunt
-        for(int i = row-1; i >= 0; i--){
-            int[] arr = {i, col};
-            if(board[i][col] != piece && board[i][col] != ""){
-                tempArray2.add(arr);
-            }
-            if(board[i][col] == piece){
-                for(int[] e : tempArray2){
-                    tiles.add(e);
-                }
-                tempArray2.clear();
-                break;
-            } 
-            /*if(board[row][i] == ""){
-                tempArray2.clear();
-                break;
-            }*/   
-        }
-        //check alle +y onder startpunt
-        for(int i = row+1; i<= 7; i++){
-            int[] arr = {i, col};
-            if(board[i][col] != piece && board[i][col] != ""){
-                tempArray3.add(arr);
-            }
-            if(board[i][col] == piece){
-                for(int[] e : tempArray3){
-                    tiles.add(e);
-                }
-                tempArray3.clear();
-                break;
-            }
-            /*if(board[row][i] == ""){
-                tempArray3.clear();
-                break;
-            }*/   
-        }
-        //diagonaal check
-        //-x -y check
-        for(int i = col-1, j = row-1; i >= 0 && j >= 0; i--, j--){
-            int[] arr = {j, i};
-            if(board[j][i] != piece && board[j][i] != ""){
-                tempArray4.add(arr);
-            }
-            if(board[j][i] == piece){
-                for(int[] e : tempArray4){
-                    tiles.add(e);
-                }
-                tempArray4.clear();
-                break;
-            } 
-            if(board[row][i] == ""){
-                tempArray4.clear();
-                break;
-            }   
-        }
-        //+x -y check
-        for(int i = col+1, j = row-1; i <= 7 && j >= 0; i--, j--){
-            int[] arr = {j, i};
-            if(board[j][i] != piece && board[j][i] != ""){
-                tempArray5.add(arr);
-            }
-            if(board[j][i] == piece){
-                for(int[] e : tempArray5){
-                    tiles.add(e);
-                }
-                tempArray5.clear();
-                break;
-            }
-            if(board[row][i] == ""){
-                tempArray5.clear();
-                break;
-            }   
-        }
-        //-x +y check
-        for(int i = col-1, j = row+1; i >= 0 && j <= 7; i--, j--){
-            int[] arr = {j, i};
-            if(board[j][i] != piece && board[j][i] != ""){
-                tempArray6.add(arr);
-            }
-            if(board[j][i] == piece){
-                for(int[] e : tempArray6){
-                    tiles.add(e);
-                }
-                tempArray6.clear();
-                break;
-            }
-            if(board[row][i] == ""){
-                tempArray6.clear();
-                break;
-            }   
-        }
-        //+x +y check
-        for(int i = col+1, j = row+1; i <= 7 && j <= 7; i--, j--){
-            int[] arr = {j, i};
-            if(board[j][i] != piece && board[j][i] != ""){
-                tempArray7.add(arr);
-            }
-            if(board[j][i] == piece){
-                for(int[] e : tempArray7){
-                    tiles.add(e);
-                }
-                tempArray7.clear();
-                break;
-            }
-            if(board[row][i] == ""){
-                tempArray7.clear();
-                break;
-            }   
-        }
+
         return tiles;
     }
 
-    //return score van beide kleuren
-    public void getScore(){
-        
-    }
-
-    //return als er geen valid moves meer zijn
-    public void checkGameOver(){
-
-    }
+    public void getScore(){ }
+    public void checkGameOver(){ }
 }
+
