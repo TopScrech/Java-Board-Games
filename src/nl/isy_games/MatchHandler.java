@@ -152,7 +152,7 @@ public class MatchHandler {
         String opponent = parseValue(message, "OPPONENT");
         String firstPlayer = parseValue(message, "FIRST");
         String playerToMove = parseValue(message, "PLAYERTOMOVE");
-        String gameType = parseValue(message, "GAMETYPE"); // <- use server-provided gametype
+        String gameType = parseValue(message, "GAMETYPE"); // server-provided gametype
 
         if (opponent == null || Boolean.TRUE.equals(matchStarted.get(client))) return;
         matchStarted.put(client, true);
@@ -171,12 +171,22 @@ public class MatchHandler {
                 previousBoard.resetBoardState();
             }
 
+            // Determine if this client moves first
             boolean myTurnFirst = client.getPlayerName().equalsIgnoreCase(firstPlayer != null ? firstPlayer : playerToMove);
 
-            // Determine which board to create based on server-provided game type
             BoardGame board;
+
             if (gameType != null && gameType.equalsIgnoreCase("reversi")) {
-                board = new ReversiGame();  // empty setup
+                // Initialize OthelloGame with proper turn info
+                ReversiGame othello = new ReversiGame(client, myTurnFirst);
+                // Set symbols: X = local, O = opponent
+                if (myTurnFirst) {
+                    othello.setPiece(); // sets mySymbol correctly
+                } else {
+                    othello.setTurn(ReversiGame.Turn.REMOTE);
+                    othello.setPiece();
+                }
+                board = othello;
             } else {
                 TicTacToeGame tttBoard = new TicTacToeGame(client, myTurnFirst, false, false);
                 tttBoard.resetBoardState();
@@ -199,7 +209,6 @@ public class MatchHandler {
                 client.send("forfeit");
                 SwingUtilities.invokeLater(() -> frame.closeGameBoard(board));
             });
-
 
             frame.getMainPanel().add(board, "currentGame");
             frame.showCard("currentGame");
