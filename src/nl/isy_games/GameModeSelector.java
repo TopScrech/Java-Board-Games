@@ -66,6 +66,7 @@ public class GameModeSelector extends JFrame {
         dispose();
     }
 
+
     private void showRandomOrFindMenu() {
         JFrame selectFrame = new JFrame("Choose Match Type");
         selectFrame.setSize(300, 150);

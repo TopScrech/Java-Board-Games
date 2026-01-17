@@ -84,7 +84,11 @@ public class ReversiGame extends BoardGame {
         }
 
         String symbolForAI = aiControlsLocal ? mySymbol : opponentSymbol;
-        aiPlayer = new ReversiAI("Bot", symbolForAI);
+        if (ReversiAISettings.getAiType() == ReversiAISettings.AIType.FIXED) {
+            aiPlayer = new ReversiFixedDepthAI("Bot", symbolForAI, ReversiAISettings.getFixedDepth());
+        } else {
+            aiPlayer = new ReversiTimedAI("Bot", symbolForAI, ReversiAISettings.getTimeLimitSeconds());
+        }
     }
 
     private void printFirstPlayer() {

@@ -236,6 +236,69 @@ public class MainFrame extends JFrame {
 
         settingsPanel.add(Box.createVerticalStrut(20));
 
+        JLabel reversiTitle = new JLabel("Reversi AI", SwingConstants.LEFT);
+        reversiTitle.setForeground(Color.WHITE);
+        reversiTitle.setFont(new Font("Arial", Font.BOLD, 18));
+        settingsPanel.add(reversiTitle);
+
+        settingsPanel.add(Box.createVerticalStrut(10));
+
+        JCheckBox fixedDepthToggle = new JCheckBox("Use fixed-depth AI");
+        fixedDepthToggle.setSelected(ReversiAISettings.getAiType() == ReversiAISettings.AIType.FIXED);
+        fixedDepthToggle.setForeground(Color.WHITE);
+        fixedDepthToggle.setBackground(new Color(28, 28, 30));
+
+        JTextField depthField = new JTextField(String.valueOf(ReversiAISettings.getFixedDepth()), 6);
+        depthField.setEnabled(fixedDepthToggle.isSelected());
+
+        fixedDepthToggle.addActionListener(e -> depthField.setEnabled(fixedDepthToggle.isSelected()));
+
+        JPanel depthPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        depthPanel.setBackground(new Color(28, 28, 30));
+        JLabel depthLabel = new JLabel("Fixed depth:");
+        depthLabel.setForeground(Color.WHITE);
+        depthPanel.add(depthLabel);
+        depthPanel.add(depthField);
+
+        JLabel timedHint = new JLabel("Time-limited AI uses up to 9 seconds per move.");
+        timedHint.setForeground(new Color(180, 180, 180));
+
+        JButton saveButton = createRoundedButton("Save", new Color(0, 123, 255), Color.WHITE);
+        saveButton.addActionListener(e -> {
+            if (fixedDepthToggle.isSelected()) {
+                int depth;
+                try {
+                    depth = Integer.parseInt(depthField.getText().trim());
+                } catch (NumberFormatException ex) {
+                    JOptionPane.showMessageDialog(this, "Fixed depth must be a positive number.",
+                            "Invalid Depth", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                if (depth < 1) {
+                    JOptionPane.showMessageDialog(this, "Fixed depth must be at least 1.",
+                            "Invalid Depth", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                ReversiAISettings.setAiType(ReversiAISettings.AIType.FIXED);
+                ReversiAISettings.setFixedDepth(depth);
+            } else {
+                ReversiAISettings.setAiType(ReversiAISettings.AIType.TIMED);
+            }
+
+            JOptionPane.showMessageDialog(this, "Settings saved.", "Settings",
+                    JOptionPane.INFORMATION_MESSAGE);
+        });
+
+        settingsPanel.add(fixedDepthToggle);
+        settingsPanel.add(Box.createVerticalStrut(8));
+        settingsPanel.add(depthPanel);
+        settingsPanel.add(Box.createVerticalStrut(8));
+        settingsPanel.add(timedHint);
+        settingsPanel.add(Box.createVerticalStrut(15));
+        settingsPanel.add(saveButton);
+
         mainPanel.add(settingsPanel, "settings");
         showCard("settings");
     }
