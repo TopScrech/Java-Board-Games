@@ -37,9 +37,24 @@ public class GameModeSelector extends JFrame {
     private void startAIMode() {
         String type = gameName == null ? "tic-tac-toe" : gameName;
 
-        TicTacToeGame board = new TicTacToeGame(null, true, true);
+        BoardGame board;
+        String title;
+        switch (type.toLowerCase()) {
+            case "tic-tac-toe":
+                board = new TicTacToeGame(null, true, true);
+                title = "Tic-Tac-Toe - AI Mode";
+                break;
+            case "reversi":
+            case "othello":
+                board = new ReversiGame(null, true, true);
+                title = "Reversi - AI Mode";
+                break;
+            default:
+                JOptionPane.showMessageDialog(this, "Game not implemented yet.");
+                return;
+        }
 
-        JFrame frame = new JFrame("Tic-Tac-Toe - AI Mode");
+        JFrame frame = new JFrame(title);
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setContentPane(board);
         frame.pack();

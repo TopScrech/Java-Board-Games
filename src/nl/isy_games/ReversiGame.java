@@ -12,6 +12,7 @@ public class ReversiGame extends BoardGame {
     private final int cellSize = 80;
     private final GameClient client;
     private final boolean myTurnFirst;
+    private final boolean aiOpponentMode;
 
     private Turn currentTurn;
     private final Turn initialTurn;
@@ -21,12 +22,21 @@ public class ReversiGame extends BoardGame {
     private String piece;
 
     private ReversiRules rules = new ReversiRules();
+    private ReversiAI aiPlayer;
+    private boolean aiMovePending = false;
     private Runnable closeCallback = () -> {};
+    private boolean gameOver = false;
+    private JDialog gameOverDialog;
 
     public ReversiGame(GameClient client, boolean myTurnFirst) {
+        this(client, myTurnFirst, false);
+    }
+
+    public ReversiGame(GameClient client, boolean myTurnFirst, boolean enableAI) {
         super(8, 8);
         this.client = client;
         this.myTurnFirst = myTurnFirst;
+        this.aiOpponentMode = enableAI;
 
         this.mySymbol = myTurnFirst ? "X" : "O";
         this.opponentSymbol = myTurnFirst ? "O" : "X";
@@ -38,6 +48,7 @@ public class ReversiGame extends BoardGame {
 
         cells = new JButton[rows][cols];
 
+        initializeAiPlayer();
         setPiece();
         buildBoard();
         setupInitialPieces();
@@ -45,11 +56,24 @@ public class ReversiGame extends BoardGame {
         setVisible(true);
 
         printFirstPlayer();
+
+        if (aiOpponentMode && client == null && currentTurn == Turn.OPPONENT) {
+            scheduleOpponentAIMove();
+        }
     }
 
     // For offline testing
     public ReversiGame() {
-        this(null, true);
+        this(null, true, false);
+    }
+
+    private void initializeAiPlayer() {
+        if (!aiOpponentMode) {
+            aiPlayer = null;
+            return;
+        }
+
+        aiPlayer = new ReversiAI("Bot", opponentSymbol);
     }
 
     private void printFirstPlayer() {
@@ -108,12 +132,14 @@ public class ReversiGame extends BoardGame {
     private void handleCellClick(int row, int col) {
         System.out.println("[DEBUG] Click at: " + row + "," + col + " | CurrentTurn: " + currentTurn);
 
+        if (gameOver) return;
+
         if (currentTurn != Turn.LOCAL && currentTurn != Turn.PLAYER) {
             System.out.println("[DEBUG] Not your turn, ignoring click.");
             return;
         }
 
-        ArrayList<int[]> legalMoves = rules.getLegalMoves(board, mySymbol);
+        ArrayList<int[]> legalMoves = getLegalMovesFor(mySymbol);
         boolean isLegal = legalMoves.stream().anyMatch(move -> move[0]==row && move[1]==col);
 
         if (!isLegal) {
@@ -123,6 +149,11 @@ public class ReversiGame extends BoardGame {
 
         System.out.println("[DEBUG] Applying move at: " + row + "," + col + " for " + mySymbol);
         applyMove(row, col, mySymbol);
+        checkGameOver();
+        if (gameOver) {
+            updateCellColors();
+            return;
+        }
 
         if (client != null) {
             int index = row * 8 + col;
@@ -130,10 +161,20 @@ public class ReversiGame extends BoardGame {
         }
 
         // Alleen wisselen van beurt als zet succesvol is gedaan
-        currentTurn = Turn.REMOTE;
+        if (client != null) {
+            currentTurn = Turn.REMOTE;
+        } else if (aiOpponentMode) {
+            currentTurn = Turn.OPPONENT;
+        } else {
+            currentTurn = Turn.REMOTE;
+        }
         setPiece();
         updateCellColors();
         printFirstPlayer();
+
+        if (aiOpponentMode && client == null && currentTurn == Turn.OPPONENT) {
+            scheduleOpponentAIMove();
+        }
     }
 
     private void setupInitialPieces() {
@@ -144,7 +185,7 @@ public class ReversiGame extends BoardGame {
     private void updateCellColors() {
         ArrayList<int[]> legalMoves = new ArrayList<>();
         if (currentTurn == Turn.LOCAL || currentTurn == Turn.PLAYER) {
-            legalMoves = rules.getLegalMoves(board, mySymbol);
+            legalMoves = getLegalMovesFor(mySymbol);
         }
 
         for (int r = 0; r < 8; r++) {
@@ -279,9 +320,155 @@ public class ReversiGame extends BoardGame {
         this.currentTurn = t;
         setPiece();
         updateCellColors();
+
+        if (aiOpponentMode && client == null && currentTurn == Turn.OPPONENT) {
+            scheduleOpponentAIMove();
+        }
     }
 
     public void setCloseCallback(Runnable callback){
         this.closeCallback = callback!=null ? callback : () -> {};
     }
+
+    public ArrayList<int[]> getLegalMovesFor(String symbol) {
+        return rules.getLegalMoves(board, symbol);
+    }
+
+    private boolean hasLegalMove(String symbol) {
+        return !getLegalMovesFor(symbol).isEmpty();
+    }
+
+    private void scheduleOpponentAIMove() {
+        if (!aiOpponentMode || client != null || aiMovePending) return;
+        aiMovePending = true;
+        SwingUtilities.invokeLater(() -> {
+            aiMovePending = false;
+            aiMove();
+        });
+    }
+
+    private void aiMove() {
+        if (!aiOpponentMode || client != null || aiPlayer == null) return;
+        if (currentTurn != Turn.OPPONENT) return;
+        if (gameOver) return;
+
+        int[] move = aiPlayer.chooseMove(this);
+        if (move == null) {
+            handleNoLegalMovesForOpponent();
+            return;
+        }
+
+        int row = move[0];
+        int col = move[1];
+
+        applyMove(row, col, opponentSymbol);
+        checkGameOver();
+        if (gameOver) {
+            updateCellColors();
+            return;
+        }
+
+        currentTurn = Turn.PLAYER;
+        setPiece();
+        updateCellColors();
+        printFirstPlayer();
+
+        handleNoLegalMovesForPlayer();
+    }
+
+    private void handleNoLegalMovesForOpponent() {
+        if (currentTurn != Turn.OPPONENT) return;
+
+        if (hasLegalMove(mySymbol)) {
+            currentTurn = Turn.PLAYER;
+            setPiece();
+            updateCellColors();
+            printFirstPlayer();
+            return;
+        }
+
+        // No legal moves for either player; leave board as-is.
+        currentTurn = Turn.PLAYER;
+        setPiece();
+        updateCellColors();
+        checkGameOver();
+    }
+
+    private void handleNoLegalMovesForPlayer() {
+        if (currentTurn != Turn.PLAYER) return;
+        if (hasLegalMove(mySymbol)) return;
+        if (!hasLegalMove(opponentSymbol)) {
+            checkGameOver();
+            return;
+        }
+
+        currentTurn = Turn.OPPONENT;
+        setPiece();
+        updateCellColors();
+        printFirstPlayer();
+        scheduleOpponentAIMove();
+    }
+
+    private void checkGameOver() {
+        if (client != null || gameOver) return;
+
+        boolean noMovesPlayer = !hasLegalMove(mySymbol);
+        boolean noMovesOpponent = !hasLegalMove(opponentSymbol);
+
+        if (!isFull() && !(noMovesPlayer && noMovesOpponent)) return;
+
+        int myCount = countPieces(mySymbol);
+        int opponentCount = countPieces(opponentSymbol);
+
+        if (myCount > opponentCount) handleGameOver("You win!");
+        else if (myCount < opponentCount) handleGameOver("You lose!");
+        else handleGameOver("Draw!");
+    }
+
+    private int countPieces(String symbol) {
+        int count = 0;
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                if (symbol.equals(board[r][c])) count++;
+            }
+        }
+        return count;
+    }
+
+    private void handleGameOver(String message) {
+        if (gameOver) return;
+        gameOver = true;
+        showGameOverDialog(message);
+        closeCallback.run();
+    }
+
+    private void showGameOverDialog(String message) {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(() -> showGameOverDialog(message));
+            return;
+        }
+
+        if (gameOverDialog != null) return;
+
+        JOptionPane pane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE);
+        pane.setOptions(new Object[]{"OK"});
+        JDialog dialog = pane.createDialog(this, "Game Over");
+        dialog.setModal(false);
+        dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+        dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosed(java.awt.event.WindowEvent e) {
+                gameOverDialog = null;
+            }
+
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                gameOverDialog = null;
+            }
+        });
+
+        gameOverDialog = dialog;
+        dialog.setVisible(true);
+    }
+
 }
