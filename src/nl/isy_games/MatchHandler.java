@@ -14,6 +14,7 @@ public class MatchHandler {
     private static final Map<GameClient, MainFrame> parentFrames = new ConcurrentHashMap<>();
     private static final Set<GameClient> attachedClients = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private static final Map<GameClient, BoardGame> finishedBoards = new ConcurrentHashMap<>();
+    private static final Map<GameClient, Boolean> acceptedChallenges = new ConcurrentHashMap<>();
     private static final Map<String, String> playerGameMap = new ConcurrentHashMap<>();
 
     private static final Map<String, Set<GameClient>> randomQueue = new ConcurrentHashMap<>();
@@ -42,6 +43,7 @@ public class MatchHandler {
         }
 
         matchStarted.remove(client);
+        acceptedChallenges.remove(client);
         frame.inMatch = false;
 
         String comment = parseValue(message, "COMMENT");
@@ -75,6 +77,7 @@ public class MatchHandler {
 
     private static void acceptChallenge(GameClient client, int challengeNumber) {
         System.out.println("[DEBUG] Accepting challenge for " + client.getPlayerName());
+        acceptedChallenges.put(client, true);
         client.acceptChallenge(challengeNumber);
     }
 
@@ -173,12 +176,16 @@ public class MatchHandler {
 
             // Determine if this client moves first
             boolean myTurnFirst = client.getPlayerName().equalsIgnoreCase(firstPlayer != null ? firstPlayer : playerToMove);
+            Mode mode = modes.getOrDefault(client, Mode.NONE);
+            boolean userConfirmedStart = mode != Mode.NONE || Boolean.TRUE.equals(acceptedChallenges.remove(client));
+            // Auto-started matches (e.g., tournaments) skip confirmation → run local AI.
+            boolean useLocalAi = !userConfirmedStart;
 
             BoardGame board;
 
             if (gameType != null && gameType.equalsIgnoreCase("reversi")) {
                 // Initialize OthelloGame with proper turn info
-                ReversiGame othello = new ReversiGame(client, myTurnFirst);
+                ReversiGame othello = new ReversiGame(client, myTurnFirst, false, useLocalAi);
                 // Set symbols: X = local, O = opponent
                 if (myTurnFirst) {
                     othello.setPiece(); // sets mySymbol correctly
@@ -188,7 +195,7 @@ public class MatchHandler {
                 }
                 board = othello;
             } else {
-                TicTacToeGame tttBoard = new TicTacToeGame(client, myTurnFirst, false, false);
+                TicTacToeGame tttBoard = new TicTacToeGame(client, myTurnFirst, false, useLocalAi);
                 tttBoard.resetBoardState();
                 tttBoard.setGameOverDialogClosedListener(() -> finishedBoards.remove(client));
                 tttBoard.setTurn(myTurnFirst ? TicTacToeGame.Turn.LOCAL : TicTacToeGame.Turn.REMOTE);
@@ -234,6 +241,7 @@ public class MatchHandler {
             }
 
             matchStarted.remove(client);
+            acceptedChallenges.remove(client);
             frame.showCard("gameSelector");
             frame.setHeaderLabel("");
             frame.clearCurrentOpponent();

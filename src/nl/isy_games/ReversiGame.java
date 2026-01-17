@@ -13,6 +13,7 @@ public class ReversiGame extends BoardGame {
     private final GameClient client;
     private final boolean myTurnFirst;
     private final boolean aiOpponentMode;
+    private final boolean aiControlsLocal;
 
     private Turn currentTurn;
     private final Turn initialTurn;
@@ -24,19 +25,26 @@ public class ReversiGame extends BoardGame {
     private ReversiRules rules = new ReversiRules();
     private ReversiAI aiPlayer;
     private boolean aiMovePending = false;
+    private boolean localAiMovePending = false;
     private Runnable closeCallback = () -> {};
     private boolean gameOver = false;
     private JDialog gameOverDialog;
+    private static final int AI_MOVE_DELAY_MS = 500;
 
     public ReversiGame(GameClient client, boolean myTurnFirst) {
-        this(client, myTurnFirst, false);
+        this(client, myTurnFirst, false, false);
     }
 
     public ReversiGame(GameClient client, boolean myTurnFirst, boolean enableAI) {
+        this(client, myTurnFirst, enableAI, false);
+    }
+
+    public ReversiGame(GameClient client, boolean myTurnFirst, boolean enableAI, boolean aiControlsLocal) {
         super(8, 8);
         this.client = client;
         this.myTurnFirst = myTurnFirst;
         this.aiOpponentMode = enableAI;
+        this.aiControlsLocal = aiControlsLocal;
 
         this.mySymbol = myTurnFirst ? "X" : "O";
         this.opponentSymbol = myTurnFirst ? "O" : "X";
@@ -59,6 +67,8 @@ public class ReversiGame extends BoardGame {
 
         if (aiOpponentMode && client == null && currentTurn == Turn.OPPONENT) {
             scheduleOpponentAIMove();
+        } else if (aiControlsLocal && currentTurn == Turn.LOCAL) {
+            triggerLocalAIMoveIfNeeded();
         }
     }
 
@@ -68,12 +78,13 @@ public class ReversiGame extends BoardGame {
     }
 
     private void initializeAiPlayer() {
-        if (!aiOpponentMode) {
+        if (!(aiOpponentMode || aiControlsLocal)) {
             aiPlayer = null;
             return;
         }
 
-        aiPlayer = new ReversiAI("Bot", opponentSymbol);
+        String symbolForAI = aiControlsLocal ? mySymbol : opponentSymbol;
+        aiPlayer = new ReversiAI("Bot", symbolForAI);
     }
 
     private void printFirstPlayer() {
@@ -133,6 +144,7 @@ public class ReversiGame extends BoardGame {
         System.out.println("[DEBUG] Click at: " + row + "," + col + " | CurrentTurn: " + currentTurn);
 
         if (gameOver) return;
+        if (aiControlsLocal) return;
 
         if (currentTurn != Turn.LOCAL && currentTurn != Turn.PLAYER) {
             System.out.println("[DEBUG] Not your turn, ignoring click.");
@@ -224,6 +236,7 @@ public class ReversiGame extends BoardGame {
             setPiece();
             updateCellColors();
             System.out.println("[DEBUG] It's your turn now.");
+            triggerLocalAIMoveIfNeeded();
             return;
         }
 
@@ -261,6 +274,7 @@ public class ReversiGame extends BoardGame {
         updateCellColors();
         printFirstPlayer();
         System.out.println("[DEBUG] CurrentTurn after server update: " + currentTurn);
+        triggerLocalAIMoveIfNeeded();
     }
 
 
@@ -323,6 +337,8 @@ public class ReversiGame extends BoardGame {
 
         if (aiOpponentMode && client == null && currentTurn == Turn.OPPONENT) {
             scheduleOpponentAIMove();
+        } else if (aiControlsLocal && currentTurn == Turn.LOCAL) {
+            triggerLocalAIMoveIfNeeded();
         }
     }
 
@@ -341,16 +357,64 @@ public class ReversiGame extends BoardGame {
     private void scheduleOpponentAIMove() {
         if (!aiOpponentMode || client != null || aiMovePending) return;
         aiMovePending = true;
-        SwingUtilities.invokeLater(() -> {
+        scheduleOnEDT(AI_MOVE_DELAY_MS, () -> {
             aiMovePending = false;
             aiMove();
         });
     }
 
+    private void triggerLocalAIMoveIfNeeded() {
+        if (!aiControlsLocal || currentTurn != Turn.LOCAL || gameOver || localAiMovePending) return;
+        localAiMovePending = true;
+        scheduleOnEDT(AI_MOVE_DELAY_MS, () -> {
+            localAiMovePending = false;
+            aiMove();
+        });
+    }
+
     private void aiMove() {
-        if (!aiOpponentMode || client != null || aiPlayer == null) return;
+        if (gameOver || aiPlayer == null) return;
+
+        if (aiControlsLocal && currentTurn == Turn.LOCAL) {
+            performLocalAIMove();
+            return;
+        }
+
+        if (!aiOpponentMode || client != null || currentTurn != Turn.OPPONENT) return;
+        performOpponentAIMove();
+    }
+
+    private void performLocalAIMove() {
+        int[] move = aiPlayer.chooseMove(this);
+        if (move == null) return;
+
+        int row = move[0];
+        int col = move[1];
+
+        applyMove(row, col, mySymbol);
+        checkGameOver();
+        if (gameOver) {
+            updateCellColors();
+            return;
+        }
+
+        if (client != null) {
+            int index = row * 8 + col;
+            client.sendMove(index);
+            currentTurn = Turn.REMOTE;
+        } else if (aiOpponentMode) {
+            currentTurn = Turn.OPPONENT;
+        } else {
+            currentTurn = Turn.REMOTE;
+        }
+
+        setPiece();
+        updateCellColors();
+        printFirstPlayer();
+    }
+
+    private void performOpponentAIMove() {
         if (currentTurn != Turn.OPPONENT) return;
-        if (gameOver) return;
 
         int[] move = aiPlayer.chooseMove(this);
         if (move == null) {
@@ -374,6 +438,17 @@ public class ReversiGame extends BoardGame {
         printFirstPlayer();
 
         handleNoLegalMovesForPlayer();
+    }
+
+    private void scheduleOnEDT(int delayMs, Runnable action) {
+        if (delayMs <= 0) {
+            SwingUtilities.invokeLater(action);
+            return;
+        }
+
+        Timer timer = new Timer(delayMs, e -> action.run());
+        timer.setRepeats(false);
+        timer.start();
     }
 
     private void handleNoLegalMovesForOpponent() {
