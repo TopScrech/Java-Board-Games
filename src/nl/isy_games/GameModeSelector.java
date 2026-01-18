@@ -15,21 +15,24 @@ public class GameModeSelector extends JFrame {
         this.gameName = gameName;
 
         setTitle("Select Game Mode");
-        setSize(300, 150);
-        setLayout(new GridLayout(3, 1, 5, 5));
+        setSize(300, 190);
+        setLayout(new GridLayout(4, 1, 5, 5));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
         JButton vsPlayerBtn = new JButton("Spelen tegen speler (Server)");
         JButton vsAIBtn = new JButton("Spelen tegen AI (Client)");
+        JButton vsRandomAIBtn = new JButton("AI vs Random");
         add(vsPlayerBtn);
         add(vsAIBtn);
+        add(vsRandomAIBtn);
 
         statusLabel = new JLabel(" ", SwingConstants.CENTER);
         add(statusLabel);
 
         vsPlayerBtn.addActionListener(e -> showRandomOrFindMenu());
         vsAIBtn.addActionListener(e -> startAIMode());
+        vsRandomAIBtn.addActionListener(e -> startAIVsRandomMode());
 
         setVisible(true);
     }
@@ -48,6 +51,42 @@ public class GameModeSelector extends JFrame {
             case "othello":
                 board = new ReversiGame(null, true, true);
                 title = "Reversi - AI Mode";
+                break;
+            default:
+                JOptionPane.showMessageDialog(this, "Game not implemented yet.");
+                return;
+        }
+
+        JFrame frame = new JFrame(title);
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.setContentPane(board);
+        frame.pack();
+        frame.setLocationRelativeTo(this);
+        frame.setVisible(true);
+
+        board.setCloseCallback(() -> SwingUtilities.invokeLater(frame::dispose));
+
+        dispose();
+    }
+
+    private void startAIVsRandomMode() {
+        String type = gameName == null ? "tic-tac-toe" : gameName;
+
+        BoardGame board;
+        String title;
+        switch (type.toLowerCase()) {
+            case "tic-tac-toe":
+                board = new TicTacToeGame(null, true,
+                        symbol -> new AI("Bot", symbol),
+                        symbol -> new TicTacToeRandomAI("Random", symbol));
+                title = "Tic-Tac-Toe - AI vs Random";
+                break;
+            case "reversi":
+            case "othello":
+                board = new ReversiGame(null, true,
+                        ReversiAISettings::createAi,
+                        symbol -> new ReversiAI("Random", symbol));
+                title = "Reversi - AI vs Random";
                 break;
             default:
                 JOptionPane.showMessageDialog(this, "Game not implemented yet.");

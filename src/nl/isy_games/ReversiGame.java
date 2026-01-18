@@ -3,6 +3,8 @@ package nl.isy_games;
 import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.Locale;
+import java.util.function.Function;
 
 public class ReversiGame extends BoardGame {
 
@@ -23,13 +25,18 @@ public class ReversiGame extends BoardGame {
     private String piece;
 
     private ReversiRules rules = new ReversiRules();
-    private ReversiAI aiPlayer;
+    private ReversiAI localAI;
+    private ReversiAI opponentAI;
+    private Function<String, ReversiAI> localAiFactory;
+    private Function<String, ReversiAI> opponentAiFactory;
     private boolean aiMovePending = false;
     private boolean localAiMovePending = false;
     private Runnable closeCallback = () -> {};
     private boolean gameOver = false;
     private JDialog gameOverDialog;
     private static final int AI_MOVE_DELAY_MS = 500;
+    private long aiTotalMoveTimeNanos = 0L;
+    private int aiMoveCount = 0;
 
     public ReversiGame(GameClient client, boolean myTurnFirst) {
         this(client, myTurnFirst, false, false);
@@ -40,11 +47,25 @@ public class ReversiGame extends BoardGame {
     }
 
     public ReversiGame(GameClient client, boolean myTurnFirst, boolean enableAI, boolean aiControlsLocal) {
+        this(client, myTurnFirst, enableAI, aiControlsLocal, null, null);
+    }
+
+    public ReversiGame(GameClient client, boolean myTurnFirst,
+                       Function<String, ReversiAI> localAiFactory,
+                       Function<String, ReversiAI> opponentAiFactory) {
+        this(client, myTurnFirst, opponentAiFactory != null, localAiFactory != null, localAiFactory, opponentAiFactory);
+    }
+
+    private ReversiGame(GameClient client, boolean myTurnFirst, boolean enableAI, boolean aiControlsLocal,
+                        Function<String, ReversiAI> localAiFactory,
+                        Function<String, ReversiAI> opponentAiFactory) {
         super(8, 8);
         this.client = client;
         this.myTurnFirst = myTurnFirst;
         this.aiOpponentMode = enableAI;
         this.aiControlsLocal = aiControlsLocal;
+        this.localAiFactory = localAiFactory;
+        this.opponentAiFactory = opponentAiFactory;
 
         this.mySymbol = myTurnFirst ? "X" : "O";
         this.opponentSymbol = myTurnFirst ? "O" : "X";
@@ -56,7 +77,14 @@ public class ReversiGame extends BoardGame {
 
         cells = new JButton[rows][cols];
 
-        initializeAiPlayer();
+        if (this.aiControlsLocal && this.localAiFactory == null) {
+            this.localAiFactory = ReversiAISettings::createAi;
+        }
+        if (this.aiOpponentMode && this.opponentAiFactory == null) {
+            this.opponentAiFactory = ReversiAISettings::createAi;
+        }
+
+        initializeAiPlayers();
         setPiece();
         buildBoard();
         setupInitialPieces();
@@ -65,9 +93,9 @@ public class ReversiGame extends BoardGame {
 
         printFirstPlayer();
 
-        if (aiOpponentMode && client == null && currentTurn == Turn.OPPONENT) {
+        if (isOpponentAITurn()) {
             scheduleOpponentAIMove();
-        } else if (aiControlsLocal && currentTurn == Turn.LOCAL) {
+        } else if (isLocalAITurn()) {
             triggerLocalAIMoveIfNeeded();
         }
     }
@@ -77,18 +105,15 @@ public class ReversiGame extends BoardGame {
         this(null, true, false);
     }
 
-    private void initializeAiPlayer() {
+    private void initializeAiPlayers() {
         if (!(aiOpponentMode || aiControlsLocal)) {
-            aiPlayer = null;
+            localAI = null;
+            opponentAI = null;
             return;
         }
 
-        String symbolForAI = aiControlsLocal ? mySymbol : opponentSymbol;
-        if (ReversiAISettings.getAiType() == ReversiAISettings.AIType.FIXED) {
-            aiPlayer = new ReversiFixedDepthAI("Bot", symbolForAI, ReversiAISettings.getFixedDepth());
-        } else {
-            aiPlayer = new ReversiTimedAI("Bot", symbolForAI, ReversiAISettings.getTimeLimitSeconds());
-        }
+        localAI = localAiFactory != null ? localAiFactory.apply(mySymbol) : null;
+        opponentAI = opponentAiFactory != null ? opponentAiFactory.apply(opponentSymbol) : null;
     }
 
     private void printFirstPlayer() {
@@ -339,9 +364,9 @@ public class ReversiGame extends BoardGame {
         setPiece();
         updateCellColors();
 
-        if (aiOpponentMode && client == null && currentTurn == Turn.OPPONENT) {
+        if (isOpponentAITurn()) {
             scheduleOpponentAIMove();
-        } else if (aiControlsLocal && currentTurn == Turn.LOCAL) {
+        } else if (isLocalAITurn()) {
             triggerLocalAIMoveIfNeeded();
         }
     }
@@ -359,7 +384,7 @@ public class ReversiGame extends BoardGame {
     }
 
     private void scheduleOpponentAIMove() {
-        if (!aiOpponentMode || client != null || aiMovePending) return;
+        if (!aiOpponentMode || opponentAI == null || client != null || aiMovePending) return;
         aiMovePending = true;
         scheduleOnEDT(AI_MOVE_DELAY_MS, () -> {
             aiMovePending = false;
@@ -368,7 +393,7 @@ public class ReversiGame extends BoardGame {
     }
 
     private void triggerLocalAIMoveIfNeeded() {
-        if (!aiControlsLocal || currentTurn != Turn.LOCAL || gameOver || localAiMovePending) return;
+        if (!aiControlsLocal || localAI == null || gameOver || !isLocalAITurn() || localAiMovePending) return;
         localAiMovePending = true;
         scheduleOnEDT(AI_MOVE_DELAY_MS, () -> {
             localAiMovePending = false;
@@ -377,20 +402,26 @@ public class ReversiGame extends BoardGame {
     }
 
     private void aiMove() {
-        if (gameOver || aiPlayer == null) return;
+        if (gameOver) return;
 
-        if (aiControlsLocal && currentTurn == Turn.LOCAL) {
+        if (isLocalAITurn()) {
             performLocalAIMove();
             return;
         }
 
-        if (!aiOpponentMode || client != null || currentTurn != Turn.OPPONENT) return;
-        performOpponentAIMove();
+        if (isOpponentAITurn()) {
+            performOpponentAIMove();
+        }
     }
 
     private void performLocalAIMove() {
-        int[] move = aiPlayer.chooseMove(this);
-        if (move == null) return;
+        long start = System.nanoTime();
+        int[] move = localAI.chooseMove(this);
+        recordAiMoveDuration(System.nanoTime() - start);
+        if (move == null) {
+            handleNoLegalMovesForPlayer();
+            return;
+        }
 
         int row = move[0];
         int col = move[1];
@@ -406,7 +437,7 @@ public class ReversiGame extends BoardGame {
             int index = row * 8 + col;
             client.sendMove(index);
             currentTurn = Turn.REMOTE;
-        } else if (aiOpponentMode) {
+        } else if (aiOpponentMode && opponentAI != null) {
             currentTurn = Turn.OPPONENT;
         } else {
             currentTurn = Turn.REMOTE;
@@ -415,12 +446,17 @@ public class ReversiGame extends BoardGame {
         setPiece();
         updateCellColors();
         printFirstPlayer();
+        if (currentTurn == Turn.OPPONENT) {
+            scheduleOpponentAIMove();
+        }
     }
 
     private void performOpponentAIMove() {
         if (currentTurn != Turn.OPPONENT) return;
 
-        int[] move = aiPlayer.chooseMove(this);
+        long start = System.nanoTime();
+        int[] move = opponentAI.chooseMove(this);
+        recordAiMoveDuration(System.nanoTime() - start);
         if (move == null) {
             handleNoLegalMovesForOpponent();
             return;
@@ -436,11 +472,16 @@ public class ReversiGame extends BoardGame {
             return;
         }
 
-        currentTurn = Turn.PLAYER;
+        if (aiControlsLocal) {
+            currentTurn = client == null ? Turn.PLAYER : Turn.LOCAL;
+        } else {
+            currentTurn = Turn.PLAYER;
+        }
         setPiece();
         updateCellColors();
         printFirstPlayer();
 
+        triggerLocalAIMoveIfNeeded();
         handleNoLegalMovesForPlayer();
     }
 
@@ -459,22 +500,31 @@ public class ReversiGame extends BoardGame {
         if (currentTurn != Turn.OPPONENT) return;
 
         if (hasLegalMove(mySymbol)) {
-            currentTurn = Turn.PLAYER;
+            if (aiControlsLocal) {
+                currentTurn = client == null ? Turn.PLAYER : Turn.LOCAL;
+            } else {
+                currentTurn = Turn.PLAYER;
+            }
             setPiece();
             updateCellColors();
             printFirstPlayer();
+            triggerLocalAIMoveIfNeeded();
             return;
         }
 
         // No legal moves for either player; leave board as-is.
-        currentTurn = Turn.PLAYER;
+        if (aiControlsLocal) {
+            currentTurn = client == null ? Turn.PLAYER : Turn.LOCAL;
+        } else {
+            currentTurn = Turn.PLAYER;
+        }
         setPiece();
         updateCellColors();
         checkGameOver();
     }
 
     private void handleNoLegalMovesForPlayer() {
-        if (currentTurn != Turn.PLAYER) return;
+        if (currentTurn != Turn.PLAYER && !(aiControlsLocal && currentTurn == Turn.LOCAL)) return;
         if (hasLegalMove(mySymbol)) return;
         if (!hasLegalMove(opponentSymbol)) {
             checkGameOver();
@@ -517,6 +567,7 @@ public class ReversiGame extends BoardGame {
     private void handleGameOver(String message) {
         if (gameOver) return;
         gameOver = true;
+        printAverageAiMoveTime();
         showGameOverDialog(message);
         closeCallback.run();
     }
@@ -548,6 +599,28 @@ public class ReversiGame extends BoardGame {
 
         gameOverDialog = dialog;
         dialog.setVisible(true);
+    }
+
+    private boolean isLocalAITurn() {
+        if (!aiControlsLocal || localAI == null) return false;
+        return currentTurn == Turn.LOCAL || (client == null && currentTurn == Turn.PLAYER);
+    }
+
+    private boolean isOpponentAITurn() {
+        return aiOpponentMode && opponentAI != null && currentTurn == Turn.OPPONENT;
+    }
+
+    private void recordAiMoveDuration(long nanos) {
+        if (nanos < 0) return;
+        aiTotalMoveTimeNanos += nanos;
+        aiMoveCount++;
+        double seconds = nanos / 1_000_000_000.0;
+        System.out.println(String.format(Locale.US, "TTM: %.3fs", seconds));
+    }
+
+    private void printAverageAiMoveTime() {
+        double avgSeconds = aiMoveCount == 0 ? 0.0 : (aiTotalMoveTimeNanos / 1_000_000_000.0) / aiMoveCount;
+        System.out.println(String.format(Locale.US, "Avg. TTM: %.3fs", avgSeconds));
     }
 
 }

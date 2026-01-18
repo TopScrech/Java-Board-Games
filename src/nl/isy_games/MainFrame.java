@@ -848,10 +848,12 @@ public class MainFrame extends JFrame {
         cardsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JPanel aiCard = createGameModeCard("AI", "Play against computer", new Color(25, 118, 210), "🤖", 260, 180);
+        JPanel aiRandomCard = createGameModeCard("AI vs Random", "AI plays against random moves", new Color(46, 125, 50), "🎲", 260, 180);
         JPanel randomCard = createGameModeCard("Random", "Quick match with random player", new Color(123, 31, 162), "🎲", 260, 180);
         JPanel findPlayerCard = createGameModeCard("Find Player", "Challenge a specific player", new Color(0, 150, 136), "🔍", 260, 180);
 
         cardsPanel.add(aiCard);
+        cardsPanel.add(aiRandomCard);
         cardsPanel.add(randomCard);
         cardsPanel.add(findPlayerCard);
 
@@ -868,6 +870,7 @@ public class MainFrame extends JFrame {
         allModesBtn.addActionListener(e -> {
             updateModeButtonStates(allModesBtn, pvpBtn, aiBtn);
             aiCard.setVisible(true);
+            aiRandomCard.setVisible(true);
             randomCard.setVisible(true);
             findPlayerCard.setVisible(true);
         });
@@ -875,6 +878,7 @@ public class MainFrame extends JFrame {
         pvpBtn.addActionListener(e -> {
             updateModeButtonStates(pvpBtn, allModesBtn, aiBtn);
             aiCard.setVisible(false);
+            aiRandomCard.setVisible(false);
             randomCard.setVisible(true);
             findPlayerCard.setVisible(true);
         });
@@ -882,6 +886,7 @@ public class MainFrame extends JFrame {
         aiBtn.addActionListener(e -> {
             updateModeButtonStates(aiBtn, allModesBtn, pvpBtn);
             aiCard.setVisible(true);
+            aiRandomCard.setVisible(true);
             randomCard.setVisible(false);
             findPlayerCard.setVisible(false);
         });
@@ -890,6 +895,12 @@ public class MainFrame extends JFrame {
         aiCard.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 startAIMode(gameName);
+            }
+        });
+
+        aiRandomCard.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                startAIVsRandomMode(gameName);
             }
         });
 
@@ -1007,6 +1018,31 @@ public class MainFrame extends JFrame {
         mainPanel.add(gamePanel, "currentGame");
         showCard("currentGame");
         setHeaderLabel("Playing " + gameName);
+    }
+
+    private void startAIVsRandomMode(String gameName) {
+        BoardGame gamePanel;
+        switch (gameName.toLowerCase()) {
+            case "tic-tac-toe":
+                gamePanel = new TicTacToeGame(null, true,
+                        symbol -> new AI("Bot", symbol),
+                        symbol -> new TicTacToeRandomAI("Random", symbol));
+                break;
+            case "reversi":
+            case "othello":
+                gamePanel = new ReversiGame(null, true,
+                        ReversiAISettings::createAi,
+                        symbol -> new ReversiAI("Random", symbol));
+                break;
+            default:
+                JOptionPane.showMessageDialog(this, "Game not implemented yet.");
+                return;
+        }
+
+        inMatch = true;
+        mainPanel.add(gamePanel, "currentGame");
+        showCard("currentGame");
+        setHeaderLabel("Playing " + gameName + " (AI vs Random)");
     }
 
     public void closeGameBoard(BoardGame board) {

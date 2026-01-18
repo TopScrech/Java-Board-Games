@@ -31,4 +31,11 @@ public final class ReversiAISettings {
     public static double getTimeLimitSeconds() {
         return timeLimitSeconds;
     }
+
+    public static ReversiAI createAi(String symbol) {
+        if (aiType == AIType.FIXED) {
+            return new ReversiFixedDepthAI("Bot", symbol, fixedDepth);
+        }
+        return new ReversiTimedAI("Bot", symbol, timeLimitSeconds);
+    }
 }

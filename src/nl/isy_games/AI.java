@@ -2,7 +2,7 @@ package nl.isy_games;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-public class AI {
+public class AI implements TicTacToeAI {
     private final String name;
     private final String symbol;
     private final String opponentSymbol;

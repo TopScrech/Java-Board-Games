@@ -4,6 +4,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.util.Locale;
+import java.util.function.Function;
 
 public class TicTacToeGame extends BoardGame {
 
@@ -13,11 +15,16 @@ public class TicTacToeGame extends BoardGame {
     private final boolean aiOpponentMode;
     private final boolean aiControlsLocal;
     private boolean gameOver = false;
-    private AI aiPlayer;
+    private TicTacToeAI localAI;
+    private TicTacToeAI opponentAI;
+    private Function<String, TicTacToeAI> localAiFactory;
+    private Function<String, TicTacToeAI> opponentAiFactory;
     private Runnable closeCallback = () -> {};
     private boolean localAiMovePending = false;
     private JDialog gameOverDialog;
     private Runnable gameOverDialogClosedListener = () -> {};
+    private long aiTotalMoveTimeNanos = 0L;
+    private int aiMoveCount = 0;
 
     private Turn currentTurn;
     private final Turn initialTurn;
@@ -37,6 +44,18 @@ public class TicTacToeGame extends BoardGame {
     }
 
     public TicTacToeGame(GameClient client, boolean playerFirst, boolean enableAI, boolean aiControlsLocal) {
+        this(client, playerFirst, enableAI, aiControlsLocal, null, null);
+    }
+
+    public TicTacToeGame(GameClient client, boolean playerFirst,
+                         Function<String, TicTacToeAI> localAiFactory,
+                         Function<String, TicTacToeAI> opponentAiFactory) {
+        this(client, playerFirst, opponentAiFactory != null, localAiFactory != null, localAiFactory, opponentAiFactory);
+    }
+
+    private TicTacToeGame(GameClient client, boolean playerFirst, boolean enableAI, boolean aiControlsLocal,
+                          Function<String, TicTacToeAI> localAiFactory,
+                          Function<String, TicTacToeAI> opponentAiFactory) {
         super(3,3);
         this.client = client;
         this.mySymbol = "X";
@@ -50,8 +69,17 @@ public class TicTacToeGame extends BoardGame {
         this.cells = new JButton[rows][cols];
         this.aiOpponentMode = enableAI;
         this.aiControlsLocal = aiControlsLocal;
+        this.localAiFactory = localAiFactory;
+        this.opponentAiFactory = opponentAiFactory;
 
-        initializeAiPlayer();
+        if (this.aiControlsLocal && this.localAiFactory == null) {
+            this.localAiFactory = symbol -> new AI("Bot", symbol);
+        }
+        if (this.aiOpponentMode && this.opponentAiFactory == null) {
+            this.opponentAiFactory = symbol -> new AI("Bot", symbol);
+        }
+
+        initializeAiPlayers();
 
         initializeUI();
 
@@ -62,20 +90,21 @@ public class TicTacToeGame extends BoardGame {
         }
     }
 
-    private void initializeAiPlayer() {
+    private void initializeAiPlayers() {
         if (!(aiOpponentMode || aiControlsLocal)) {
-            aiPlayer = null;
+            localAI = null;
+            opponentAI = null;
             return;
         }
 
-        String symbolForAI = aiControlsLocal ? mySymbol : opponentSymbol;
-        aiPlayer = new AI("Bot", symbolForAI);
+        localAI = localAiFactory != null ? localAiFactory.apply(mySymbol) : null;
+        opponentAI = opponentAiFactory != null ? opponentAiFactory.apply(opponentSymbol) : null;
     }
 
     public void setSymbols(String my, String opponent) {
         this.mySymbol = my;
         this.opponentSymbol = opponent;
-        initializeAiPlayer();
+        initializeAiPlayers();
         if (aiControlsLocal) triggerLocalAIMoveIfNeeded();
     }
 
@@ -145,28 +174,20 @@ public class TicTacToeGame extends BoardGame {
     }
 
     private void aiMove() {
-        if (gameOver || aiPlayer == null) return;
+        if (gameOver) return;
 
-        if (aiControlsLocal) {
+        if (isLocalAITurn()) {
             performLocalAIMove();
             return;
         }
 
-        int[] move = aiPlayer.chooseMove(this);
-        if (move == null) return;
-
-        int r = move[0], c = move[1];
-        placeMove(r, c, opponentSymbol, new Color(255,69,0));
-        checkGameOver(opponentSymbol);
-
-        if(!gameOver){
-            currentTurn = Turn.PLAYER;
-            updateTurnLabel();
+        if (isOpponentAITurn()) {
+            performOpponentAIMove();
         }
     }
 
     private void triggerLocalAIMoveIfNeeded() {
-        if (!aiControlsLocal || gameOver || currentTurn != Turn.LOCAL || localAiMovePending) return;
+        if (!aiControlsLocal || localAI == null || gameOver || !isLocalAITurn() || localAiMovePending) return;
         localAiMovePending = true;
         scheduleOnEDT(AI_MOVE_DELAY_MS, () -> {
             localAiMovePending = false;
@@ -177,7 +198,9 @@ public class TicTacToeGame extends BoardGame {
     private void performLocalAIMove() {
         if (gameOver) return;
 
-        int[] move = aiPlayer.chooseMove(this);
+        long start = System.nanoTime();
+        int[] move = localAI.chooseMove(this);
+        recordAiMoveDuration(System.nanoTime() - start);
         if (move == null) {
             scheduleLocalAiRetry();
             return;
@@ -199,8 +222,17 @@ public class TicTacToeGame extends BoardGame {
         checkGameOver(mySymbol);
 
         if (!gameOver) {
-            currentTurn = Turn.REMOTE;
+            if (client != null) {
+                currentTurn = Turn.REMOTE;
+            } else if (aiOpponentMode && opponentAI != null) {
+                currentTurn = Turn.OPPONENT;
+            } else {
+                currentTurn = Turn.REMOTE;
+            }
             updateTurnLabel();
+            if (currentTurn == Turn.OPPONENT) {
+                scheduleOpponentAIMove();
+            }
         }
     }
 
@@ -215,7 +247,31 @@ public class TicTacToeGame extends BoardGame {
     }
 
     private void scheduleOpponentAIMove() {
+        if (!aiOpponentMode || opponentAI == null) return;
         scheduleOnEDT(AI_MOVE_DELAY_MS, this::aiMove);
+    }
+
+    private void performOpponentAIMove() {
+        if (gameOver) return;
+
+        long start = System.nanoTime();
+        int[] move = opponentAI.chooseMove(this);
+        recordAiMoveDuration(System.nanoTime() - start);
+        if (move == null) return;
+
+        int r = move[0], c = move[1];
+        placeMove(r, c, opponentSymbol, new Color(255,69,0));
+        checkGameOver(opponentSymbol);
+
+        if(!gameOver){
+            if (aiControlsLocal) {
+                currentTurn = client == null ? Turn.PLAYER : Turn.LOCAL;
+            } else {
+                currentTurn = Turn.PLAYER;
+            }
+            updateTurnLabel();
+            triggerLocalAIMoveIfNeeded();
+        }
     }
 
     private void placeMove(int row,int col,String symbol,Color color){
@@ -279,6 +335,7 @@ public class TicTacToeGame extends BoardGame {
     private void handleGameOver(String message) {
         if (gameOver) return;
         gameOver = true;
+        printAverageAiMoveTime();
         showGameOverDialog(message);
         closeCallback.run();
     }
@@ -359,6 +416,8 @@ public class TicTacToeGame extends BoardGame {
 
         gameOver = false;
         localAiMovePending = false;
+        aiTotalMoveTimeNanos = 0L;
+        aiMoveCount = 0;
         currentTurn = initialTurn;
         updateTurnLabel();
     }
@@ -371,7 +430,11 @@ public class TicTacToeGame extends BoardGame {
 
         switch (currentTurn) {
             case PLAYER:
-                turnLabel.setText("Your turn: " + mySymbol);
+                if (aiControlsLocal && client == null) {
+                    turnLabel.setText("AI playing as " + mySymbol);
+                } else {
+                    turnLabel.setText("Your turn: " + mySymbol);
+                }
                 break;
             case OPPONENT:
                 turnLabel.setText("Opponent's turn: " + opponentSymbol);
@@ -418,6 +481,28 @@ public class TicTacToeGame extends BoardGame {
         button.setFont(new Font("Arial",Font.BOLD,60));
         button.setForeground(Color.WHITE);
         return button;
+    }
+
+    private boolean isLocalAITurn() {
+        if (!aiControlsLocal || localAI == null) return false;
+        return currentTurn == Turn.LOCAL || (client == null && currentTurn == Turn.PLAYER);
+    }
+
+    private boolean isOpponentAITurn() {
+        return aiOpponentMode && opponentAI != null && currentTurn == Turn.OPPONENT;
+    }
+
+    private void recordAiMoveDuration(long nanos) {
+        if (nanos < 0) return;
+        aiTotalMoveTimeNanos += nanos;
+        aiMoveCount++;
+        double seconds = nanos / 1_000_000_000.0;
+        System.out.println(String.format(Locale.US, "TTM: %.3fs", seconds));
+    }
+
+    private void printAverageAiMoveTime() {
+        double avgSeconds = aiMoveCount == 0 ? 0.0 : (aiTotalMoveTimeNanos / 1_000_000_000.0) / aiMoveCount;
+        System.out.println(String.format(Locale.US, "Avg. TTM: %.3fs", avgSeconds));
     }
 
     public void setCloseCallback(Runnable callback){ this.closeCallback = callback!=null?callback:()->{}; }
