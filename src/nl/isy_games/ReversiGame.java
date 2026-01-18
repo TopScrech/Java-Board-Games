@@ -417,7 +417,9 @@ public class ReversiGame extends BoardGame {
     private void performLocalAIMove() {
         long start = System.nanoTime();
         int[] move = localAI.chooseMove(this);
-        recordAiMoveDuration(System.nanoTime() - start);
+        if (shouldRecordAiTime(localAI)) {
+            recordAiMoveDuration(System.nanoTime() - start);
+        }
         if (move == null) {
             handleNoLegalMovesForPlayer();
             return;
@@ -456,7 +458,9 @@ public class ReversiGame extends BoardGame {
 
         long start = System.nanoTime();
         int[] move = opponentAI.chooseMove(this);
-        recordAiMoveDuration(System.nanoTime() - start);
+        if (shouldRecordAiTime(opponentAI)) {
+            recordAiMoveDuration(System.nanoTime() - start);
+        }
         if (move == null) {
             handleNoLegalMovesForOpponent();
             return;
@@ -616,6 +620,10 @@ public class ReversiGame extends BoardGame {
         aiMoveCount++;
         double seconds = nanos / 1_000_000_000.0;
         System.out.println(String.format(Locale.US, "TTM: %.3fs", seconds));
+    }
+
+    private boolean shouldRecordAiTime(ReversiAI ai) {
+        return ai != null && ai.getClass() != ReversiAI.class;
     }
 
     private void printAverageAiMoveTime() {

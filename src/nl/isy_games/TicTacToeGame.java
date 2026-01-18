@@ -200,7 +200,9 @@ public class TicTacToeGame extends BoardGame {
 
         long start = System.nanoTime();
         int[] move = localAI.chooseMove(this);
-        recordAiMoveDuration(System.nanoTime() - start);
+        if (shouldRecordAiTime(localAI)) {
+            recordAiMoveDuration(System.nanoTime() - start);
+        }
         if (move == null) {
             scheduleLocalAiRetry();
             return;
@@ -256,7 +258,9 @@ public class TicTacToeGame extends BoardGame {
 
         long start = System.nanoTime();
         int[] move = opponentAI.chooseMove(this);
-        recordAiMoveDuration(System.nanoTime() - start);
+        if (shouldRecordAiTime(opponentAI)) {
+            recordAiMoveDuration(System.nanoTime() - start);
+        }
         if (move == null) return;
 
         int r = move[0], c = move[1];
@@ -498,6 +502,10 @@ public class TicTacToeGame extends BoardGame {
         aiMoveCount++;
         double seconds = nanos / 1_000_000_000.0;
         System.out.println(String.format(Locale.US, "TTM: %.3fs", seconds));
+    }
+
+    private boolean shouldRecordAiTime(TicTacToeAI ai) {
+        return ai != null && !(ai instanceof TicTacToeRandomAI);
     }
 
     private void printAverageAiMoveTime() {
