@@ -576,6 +576,13 @@ public class ReversiGame extends BoardGame {
         closeCallback.run();
     }
 
+    @Override
+    public void onMatchEnded() {
+        if (gameOver) return;
+        gameOver = true;
+        printAverageAiMoveTime();
+    }
+
     private void showGameOverDialog(String message) {
         if (!SwingUtilities.isEventDispatchThread()) {
             SwingUtilities.invokeLater(() -> showGameOverDialog(message));

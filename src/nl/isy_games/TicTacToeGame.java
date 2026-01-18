@@ -426,6 +426,13 @@ public class TicTacToeGame extends BoardGame {
         updateTurnLabel();
     }
 
+    @Override
+    public void onMatchEnded() {
+        if (gameOver) return;
+        gameOver = true;
+        printAverageAiMoveTime();
+    }
+
     private void updateTurnLabel() {
         if (gameOver) {
             turnLabel.setText("Game over");

@@ -39,4 +39,5 @@ public abstract class BoardGame extends JPanel {
     public void setCloseCallback(Runnable callback) { this.closeCallback = callback; }
     public void dismissGameOverDialog() {}
     public void resetBoardState() {}
+    public void onMatchEnded() {}
 }

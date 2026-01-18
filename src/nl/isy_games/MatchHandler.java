@@ -38,6 +38,7 @@ public class MatchHandler {
 
         BoardGame board = boards.remove(client);
         if (board != null) {
+            board.onMatchEnded();
             finishedBoards.put(client, board);
             frame.closeGameBoard(board);
         }
