@@ -21,15 +21,23 @@ public class ReversiTimedAI extends ReversiSearchAI {
         int[] bestMove = null;
         int depth = 1;
         int maxDepth = 64;
+        int lastCompletedDepth = 0;
+        boolean timedOut = false;
 
         while (depth <= maxDepth && !isExpired(deadline)) {
             TimedResult result = bestMoveTimed(state, depth, deadline);
             if (result.completed && result.move != null) {
                 bestMove = result.move;
+                lastCompletedDepth = depth;
                 depth++;
             } else {
+                timedOut = isExpired(deadline);
                 break;
             }
+        }
+
+        if (timedOut) {
+            System.out.println("Timed AI max completed depth: " + lastCompletedDepth);
         }
 
         if (bestMove == null) {
