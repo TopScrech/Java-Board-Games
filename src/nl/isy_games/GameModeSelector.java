@@ -14,18 +14,25 @@ public class GameModeSelector extends JFrame {
         this.client = client;
         this.gameName = gameName;
 
+        boolean isReversi = gameName != null
+                && (gameName.equalsIgnoreCase("reversi") || gameName.equalsIgnoreCase("othello"));
+
         setTitle("Select Game Mode");
-        setSize(300, 190);
-        setLayout(new GridLayout(4, 1, 5, 5));
+        setSize(300, isReversi ? 230 : 190);
+        setLayout(new GridLayout(isReversi ? 5 : 4, 1, 5, 5));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
         JButton vsPlayerBtn = new JButton("Spelen tegen speler (Server)");
         JButton vsAIBtn = new JButton("Spelen tegen AI (Client)");
         JButton vsRandomAIBtn = new JButton("AI vs Random");
+        JButton vsTimedVsFixedBtn = isReversi ? new JButton("Timed vs Fixed (AI)") : null;
         add(vsPlayerBtn);
         add(vsAIBtn);
         add(vsRandomAIBtn);
+        if (vsTimedVsFixedBtn != null) {
+            add(vsTimedVsFixedBtn);
+        }
 
         statusLabel = new JLabel(" ", SwingConstants.CENTER);
         add(statusLabel);
@@ -33,6 +40,9 @@ public class GameModeSelector extends JFrame {
         vsPlayerBtn.addActionListener(e -> showRandomOrFindMenu());
         vsAIBtn.addActionListener(e -> startAIMode());
         vsRandomAIBtn.addActionListener(e -> startAIVsRandomMode());
+        if (vsTimedVsFixedBtn != null) {
+            vsTimedVsFixedBtn.addActionListener(e -> startTimedVsFixedMode());
+        }
 
         setVisible(true);
     }
@@ -90,6 +100,36 @@ public class GameModeSelector extends JFrame {
                 break;
             default:
                 JOptionPane.showMessageDialog(this, "Game not implemented yet.");
+                return;
+        }
+
+        JFrame frame = new JFrame(title);
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.setContentPane(board);
+        frame.pack();
+        frame.setLocationRelativeTo(this);
+        frame.setVisible(true);
+
+        board.setCloseCallback(() -> SwingUtilities.invokeLater(frame::dispose));
+
+        dispose();
+    }
+
+    private void startTimedVsFixedMode() {
+        String type = gameName == null ? "tic-tac-toe" : gameName;
+
+        BoardGame board;
+        String title;
+        switch (type.toLowerCase()) {
+            case "reversi":
+            case "othello":
+                board = new ReversiGame(null, true,
+                        symbol -> new ReversiTimedAI("Timed", symbol, ReversiAISettings.DEFAULT_TIME_LIMIT_SECONDS),
+                        symbol -> new ReversiFixedDepthAI("Fixed", symbol, ReversiAISettings.DEFAULT_FIXED_DEPTH));
+                title = "Reversi - Timed vs Fixed";
+                break;
+            default:
+                JOptionPane.showMessageDialog(this, "Mode not available for this game.");
                 return;
         }
 

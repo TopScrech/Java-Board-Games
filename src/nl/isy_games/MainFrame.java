@@ -812,6 +812,8 @@ public class MainFrame extends JFrame {
     }
 
     private JPanel createGameModePanel(String gameName) {
+        boolean isReversi = gameName != null
+                && (gameName.equalsIgnoreCase("reversi") || gameName.equalsIgnoreCase("othello"));
         // Wrapper panel to enforce top alignment
         JPanel wrapper = new JPanel(new BorderLayout());
         wrapper.setBackground(new Color(28, 28, 30));
@@ -849,11 +851,18 @@ public class MainFrame extends JFrame {
 
         JPanel aiCard = createGameModeCard("AI", "Play against computer", new Color(25, 118, 210), "🤖", 260, 180);
         JPanel aiRandomCard = createGameModeCard("AI vs Random", "AI plays against random moves", new Color(46, 125, 50), "🎲", 260, 180);
+        final JPanel aiTimedVsFixedCard = isReversi
+                ? createGameModeCard("Timed vs Fixed",
+                        "Timed AI (9s) vs fixed depth (7)", new Color(255, 152, 0), "⏱️", 260, 180)
+                : null;
         JPanel randomCard = createGameModeCard("Random", "Quick match with random player", new Color(123, 31, 162), "🎲", 260, 180);
         JPanel findPlayerCard = createGameModeCard("Find Player", "Challenge a specific player", new Color(0, 150, 136), "🔍", 260, 180);
 
         cardsPanel.add(aiCard);
         cardsPanel.add(aiRandomCard);
+        if (aiTimedVsFixedCard != null) {
+            cardsPanel.add(aiTimedVsFixedCard);
+        }
         cardsPanel.add(randomCard);
         cardsPanel.add(findPlayerCard);
 
@@ -871,6 +880,9 @@ public class MainFrame extends JFrame {
             updateModeButtonStates(allModesBtn, pvpBtn, aiBtn);
             aiCard.setVisible(true);
             aiRandomCard.setVisible(true);
+            if (aiTimedVsFixedCard != null) {
+                aiTimedVsFixedCard.setVisible(true);
+            }
             randomCard.setVisible(true);
             findPlayerCard.setVisible(true);
         });
@@ -879,6 +891,9 @@ public class MainFrame extends JFrame {
             updateModeButtonStates(pvpBtn, allModesBtn, aiBtn);
             aiCard.setVisible(false);
             aiRandomCard.setVisible(false);
+            if (aiTimedVsFixedCard != null) {
+                aiTimedVsFixedCard.setVisible(false);
+            }
             randomCard.setVisible(true);
             findPlayerCard.setVisible(true);
         });
@@ -887,6 +902,9 @@ public class MainFrame extends JFrame {
             updateModeButtonStates(aiBtn, allModesBtn, pvpBtn);
             aiCard.setVisible(true);
             aiRandomCard.setVisible(true);
+            if (aiTimedVsFixedCard != null) {
+                aiTimedVsFixedCard.setVisible(true);
+            }
             randomCard.setVisible(false);
             findPlayerCard.setVisible(false);
         });
@@ -903,6 +921,14 @@ public class MainFrame extends JFrame {
                 startAIVsRandomMode(gameName);
             }
         });
+
+        if (aiTimedVsFixedCard != null) {
+            aiTimedVsFixedCard.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseClicked(java.awt.event.MouseEvent evt) {
+                    startTimedVsFixedMode(gameName);
+                }
+            });
+        }
 
         randomCard.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent evt) {
@@ -1043,6 +1069,26 @@ public class MainFrame extends JFrame {
         mainPanel.add(gamePanel, "currentGame");
         showCard("currentGame");
         setHeaderLabel("Playing " + gameName + " (AI vs Random)");
+    }
+
+    private void startTimedVsFixedMode(String gameName) {
+        BoardGame gamePanel;
+        switch (gameName.toLowerCase()) {
+            case "reversi":
+            case "othello":
+                gamePanel = new ReversiGame(null, true,
+                        symbol -> new ReversiTimedAI("Timed", symbol, ReversiAISettings.DEFAULT_TIME_LIMIT_SECONDS),
+                        symbol -> new ReversiFixedDepthAI("Fixed", symbol, ReversiAISettings.DEFAULT_FIXED_DEPTH));
+                break;
+            default:
+                JOptionPane.showMessageDialog(this, "Mode not available for this game.");
+                return;
+        }
+
+        inMatch = true;
+        mainPanel.add(gamePanel, "currentGame");
+        showCard("currentGame");
+        setHeaderLabel("Playing " + gameName + " (Timed vs Fixed)");
     }
 
     public void closeGameBoard(BoardGame board) {

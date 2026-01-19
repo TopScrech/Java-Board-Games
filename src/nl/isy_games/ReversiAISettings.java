@@ -4,9 +4,12 @@ public final class ReversiAISettings {
 
     public enum AIType { TIMED, FIXED }
 
+    public static final int DEFAULT_FIXED_DEPTH = 7;
+    public static final double DEFAULT_TIME_LIMIT_SECONDS = 9.0;
+
     private static AIType aiType = AIType.TIMED;
-    private static int fixedDepth = 7;
-    private static double timeLimitSeconds = 9.0;
+    private static int fixedDepth = DEFAULT_FIXED_DEPTH;
+    private static double timeLimitSeconds = DEFAULT_TIME_LIMIT_SECONDS;
 
     private ReversiAISettings() {}
 
