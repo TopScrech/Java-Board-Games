@@ -34,7 +34,7 @@ public class ReversiGame extends BoardGame {
     private Runnable closeCallback = () -> {};
     private boolean gameOver = false;
     private JDialog gameOverDialog;
-    private static final int AI_MOVE_DELAY_MS = 500;
+    private static final int AI_MOVE_DELAY_MS = 250;
     private long aiTotalMoveTimeNanos = 0L;
     private int aiMoveCount = 0;
 
@@ -375,6 +375,46 @@ public class ReversiGame extends BoardGame {
         this.closeCallback = callback!=null ? callback : () -> {};
     }
 
+    @Override
+    public void dismissGameOverDialog() {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(this::dismissGameOverDialog);
+            return;
+        }
+
+        if (gameOverDialog == null) return;
+
+        JDialog dialog = gameOverDialog;
+        gameOverDialog = null;
+        dialog.dispose();
+    }
+
+    @Override
+    public void resetBoardState() {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(this::resetBoardState);
+            return;
+        }
+
+        dismissGameOverDialog();
+
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                setCell(r, c, "");
+            }
+        }
+
+        setupInitialPieces();
+        gameOver = false;
+        aiMovePending = false;
+        localAiMovePending = false;
+        aiTotalMoveTimeNanos = 0L;
+        aiMoveCount = 0;
+        currentTurn = initialTurn;
+        setPiece();
+        updateCellColors();
+    }
+
     public ArrayList<int[]> getLegalMovesFor(String symbol) {
         return rules.getLegalMoves(board, symbol);
     }
@@ -576,6 +616,24 @@ public class ReversiGame extends BoardGame {
         closeCallback.run();
     }
 
+    private boolean isAIVsRandomMode() {
+        return client == null
+                && aiControlsLocal
+                && aiOpponentMode
+                && localAI != null
+                && opponentAI != null
+                && localAI.getClass() != ReversiAI.class
+                && opponentAI.getClass() == ReversiAI.class;
+    }
+
+    private void replayAIVsRandomGame() {
+        resetBoardState();
+        triggerLocalAIMoveIfNeeded();
+        if (isOpponentAITurn()) {
+            scheduleOpponentAIMove();
+        }
+    }
+
     @Override
     public void onMatchEnded() {
         if (gameOver) return;
@@ -592,7 +650,8 @@ public class ReversiGame extends BoardGame {
         if (gameOverDialog != null) return;
 
         JOptionPane pane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE);
-        pane.setOptions(new Object[]{"OK"});
+        boolean showReplay = isAIVsRandomMode();
+        pane.setOptions(showReplay ? new Object[]{"Replay", "OK"} : new Object[]{"OK"});
         JDialog dialog = pane.createDialog(this, "Game Over");
         dialog.setModal(false);
         dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
@@ -607,6 +666,21 @@ public class ReversiGame extends BoardGame {
                 gameOverDialog = null;
             }
         });
+
+        if (showReplay) {
+            pane.addPropertyChangeListener(evt -> {
+                if (!JOptionPane.VALUE_PROPERTY.equals(evt.getPropertyName())) return;
+                Object value = pane.getValue();
+                if (value == JOptionPane.UNINITIALIZED_VALUE) return;
+                if ("Replay".equals(value)) {
+                    pane.setValue(JOptionPane.UNINITIALIZED_VALUE);
+                    dismissGameOverDialog();
+                    replayAIVsRandomGame();
+                } else {
+                    dismissGameOverDialog();
+                }
+            });
+        }
 
         gameOverDialog = dialog;
         dialog.setVisible(true);

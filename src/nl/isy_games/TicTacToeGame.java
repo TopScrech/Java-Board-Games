@@ -344,6 +344,23 @@ public class TicTacToeGame extends BoardGame {
         closeCallback.run();
     }
 
+    private boolean isAIVsRandomMode() {
+        return client == null
+                && aiControlsLocal
+                && aiOpponentMode
+                && localAI != null
+                && opponentAI instanceof TicTacToeRandomAI
+                && !(localAI instanceof TicTacToeRandomAI);
+    }
+
+    private void replayAIVsRandomGame() {
+        resetBoardState();
+        triggerLocalAIMoveIfNeeded();
+        if (aiOpponentMode && currentTurn == Turn.OPPONENT) {
+            scheduleOpponentAIMove();
+        }
+    }
+
     private void showGameOverDialog(String message) {
         if (!SwingUtilities.isEventDispatchThread()) {
             SwingUtilities.invokeLater(() -> showGameOverDialog(message));
@@ -353,7 +370,8 @@ public class TicTacToeGame extends BoardGame {
         dismissGameOverDialog();
 
         JOptionPane pane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE);
-        pane.setOptions(new Object[]{"OK"});
+        boolean showReplay = isAIVsRandomMode();
+        pane.setOptions(showReplay ? new Object[]{"Replay", "OK"} : new Object[]{"OK"});
         JDialog dialog = pane.createDialog(this, "Game Over");
         dialog.setModal(false);
         dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
@@ -369,6 +387,21 @@ public class TicTacToeGame extends BoardGame {
                 gameOverDialog = null;
             }
         });
+
+        if (showReplay) {
+            pane.addPropertyChangeListener(evt -> {
+                if (!JOptionPane.VALUE_PROPERTY.equals(evt.getPropertyName())) return;
+                Object value = pane.getValue();
+                if (value == JOptionPane.UNINITIALIZED_VALUE) return;
+                if ("Replay".equals(value)) {
+                    pane.setValue(JOptionPane.UNINITIALIZED_VALUE);
+                    dismissGameOverDialog();
+                    replayAIVsRandomGame();
+                } else {
+                    dismissGameOverDialog();
+                }
+            });
+        }
 
         gameOverDialog = dialog;
         dialog.setVisible(true);
