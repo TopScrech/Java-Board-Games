@@ -295,15 +295,9 @@ public class ReversiGame extends BoardGame {
         System.out.println("[DEBUG] Applying server move at: " + row + "," + col + " for " + symbol);
         applyMove(row, col, symbol);
 
-        if (symbol.equals(opponentSymbol)) {
-            currentTurn = Turn.LOCAL;
-            setPiece();
-        }
-
         updateCellColors();
         printFirstPlayer();
         System.out.println("[DEBUG] CurrentTurn after server update: " + currentTurn);
-        triggerLocalAIMoveIfNeeded();
     }
 
 
