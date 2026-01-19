@@ -620,7 +620,23 @@ public class ReversiGame extends BoardGame {
                 && opponentAI.getClass() == ReversiAI.class;
     }
 
+    private boolean isTimedVsFixedMode() {
+        return client == null
+                && aiControlsLocal
+                && aiOpponentMode
+                && localAI instanceof ReversiTimedAI
+                && opponentAI instanceof ReversiFixedDepthAI;
+    }
+
     private void replayAIVsRandomGame() {
+        resetBoardState();
+        triggerLocalAIMoveIfNeeded();
+        if (isOpponentAITurn()) {
+            scheduleOpponentAIMove();
+        }
+    }
+
+    private void replayTimedVsFixedGame() {
         resetBoardState();
         triggerLocalAIMoveIfNeeded();
         if (isOpponentAITurn()) {
@@ -644,7 +660,13 @@ public class ReversiGame extends BoardGame {
         if (gameOverDialog != null) return;
 
         JOptionPane pane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE);
-        boolean showReplay = isAIVsRandomMode();
+        Runnable replayAction = null;
+        if (isAIVsRandomMode()) {
+            replayAction = this::replayAIVsRandomGame;
+        } else if (isTimedVsFixedMode()) {
+            replayAction = this::replayTimedVsFixedGame;
+        }
+        boolean showReplay = replayAction != null;
         pane.setOptions(showReplay ? new Object[]{"Replay", "OK"} : new Object[]{"OK"});
         JDialog dialog = pane.createDialog(this, "Game Over");
         dialog.setModal(false);
@@ -662,6 +684,7 @@ public class ReversiGame extends BoardGame {
         });
 
         if (showReplay) {
+            final Runnable finalReplayAction = replayAction;
             pane.addPropertyChangeListener(evt -> {
                 if (!JOptionPane.VALUE_PROPERTY.equals(evt.getPropertyName())) return;
                 Object value = pane.getValue();
@@ -669,7 +692,7 @@ public class ReversiGame extends BoardGame {
                 if ("Replay".equals(value)) {
                     pane.setValue(JOptionPane.UNINITIALIZED_VALUE);
                     dismissGameOverDialog();
-                    replayAIVsRandomGame();
+                    finalReplayAction.run();
                 } else {
                     dismissGameOverDialog();
                 }
