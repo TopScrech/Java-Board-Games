@@ -1076,7 +1076,8 @@ public class MainFrame extends JFrame {
         switch (gameName.toLowerCase()) {
             case "reversi":
             case "othello":
-                gamePanel = new ReversiGame(null, true,
+                boolean timedStarts = Math.random() < 0.5;
+                gamePanel = new ReversiGame(null, timedStarts,
                         symbol -> new ReversiTimedAI("Timed", symbol, ReversiAISettings.DEFAULT_TIME_LIMIT_SECONDS),
                         symbol -> new ReversiFixedDepthAI("Fixed", symbol, ReversiAISettings.DEFAULT_FIXED_DEPTH));
                 break;

@@ -123,7 +123,8 @@ public class GameModeSelector extends JFrame {
         switch (type.toLowerCase()) {
             case "reversi":
             case "othello":
-                board = new ReversiGame(null, true,
+                boolean timedStarts = Math.random() < 0.5;
+                board = new ReversiGame(null, timedStarts,
                         symbol -> new ReversiTimedAI("Timed", symbol, ReversiAISettings.DEFAULT_TIME_LIMIT_SECONDS),
                         symbol -> new ReversiFixedDepthAI("Fixed", symbol, ReversiAISettings.DEFAULT_FIXED_DEPTH));
                 title = "Reversi - Timed vs Fixed";
