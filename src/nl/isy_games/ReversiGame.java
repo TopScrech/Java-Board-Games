@@ -34,7 +34,7 @@ public class ReversiGame extends BoardGame {
     private Runnable closeCallback = () -> {};
     private boolean gameOver = false;
     private JDialog gameOverDialog;
-    private static final int AI_MOVE_DELAY_MS = 250;
+    private static final int AI_MOVE_DELAY_MS = 100;
     private long aiTotalMoveTimeNanos = 0L;
     private int aiMoveCount = 0;
 
