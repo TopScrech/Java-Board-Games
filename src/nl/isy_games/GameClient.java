@@ -160,6 +160,11 @@ public class GameClient {
     }
 
     public void sendMove(int move) {
+        try {
+            Thread.sleep(250);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
         send("move " + move);
         System.out.println("DEBUG: Move sent: " + move);
     }
