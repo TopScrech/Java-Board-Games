@@ -18,8 +18,8 @@ public class GameModeSelector extends JFrame {
                 && (gameName.equalsIgnoreCase("reversi") || gameName.equalsIgnoreCase("othello"));
 
         setTitle("Select Game Mode");
-        setSize(300, isReversi ? 230 : 190);
-        setLayout(new GridLayout(isReversi ? 5 : 4, 1, 5, 5));
+        setSize(300, isReversi ? 270 : 190);
+        setLayout(new GridLayout(isReversi ? 6 : 4, 1, 5, 5));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
@@ -27,11 +27,15 @@ public class GameModeSelector extends JFrame {
         JButton vsAIBtn = new JButton("Spelen tegen AI (Client)");
         JButton vsRandomAIBtn = new JButton("AI vs Random");
         JButton vsTimedVsFixedBtn = isReversi ? new JButton("Timed vs Fixed (AI)") : null;
+        JButton vsWijmarTimedBtn = isReversi ? new JButton("Wijmar vs Timed (AI)") : null;
         add(vsPlayerBtn);
         add(vsAIBtn);
         add(vsRandomAIBtn);
         if (vsTimedVsFixedBtn != null) {
             add(vsTimedVsFixedBtn);
+        }
+        if (vsWijmarTimedBtn != null) {
+            add(vsWijmarTimedBtn);
         }
 
         statusLabel = new JLabel(" ", SwingConstants.CENTER);
@@ -42,6 +46,9 @@ public class GameModeSelector extends JFrame {
         vsRandomAIBtn.addActionListener(e -> startAIVsRandomMode());
         if (vsTimedVsFixedBtn != null) {
             vsTimedVsFixedBtn.addActionListener(e -> startTimedVsFixedMode());
+        }
+        if (vsWijmarTimedBtn != null) {
+            vsWijmarTimedBtn.addActionListener(e -> startWijmarVsTimedMode());
         }
 
         setVisible(true);
@@ -128,6 +135,37 @@ public class GameModeSelector extends JFrame {
                         symbol -> new ReversiTimedAI("Timed", symbol, ReversiAISettings.DEFAULT_TIME_LIMIT_SECONDS),
                         symbol -> new ReversiFixedDepthAI("Fixed", symbol, ReversiAISettings.DEFAULT_FIXED_DEPTH));
                 title = "Reversi - Timed vs Fixed";
+                break;
+            default:
+                JOptionPane.showMessageDialog(this, "Mode not available for this game.");
+                return;
+        }
+
+        JFrame frame = new JFrame(title);
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.setContentPane(board);
+        frame.pack();
+        frame.setLocationRelativeTo(this);
+        frame.setVisible(true);
+
+        board.setCloseCallback(() -> SwingUtilities.invokeLater(frame::dispose));
+
+        dispose();
+    }
+
+    private void startWijmarVsTimedMode() {
+        String type = gameName == null ? "tic-tac-toe" : gameName;
+
+        BoardGame board;
+        String title;
+        switch (type.toLowerCase()) {
+            case "reversi":
+            case "othello":
+                boolean wijmarStarts = Math.random() < 0.5;
+                board = new ReversiGame(null, wijmarStarts,
+                        symbol -> new ReversiWijmarUltimateAI("Wijmar", symbol, ReversiAISettings.DEFAULT_TIME_LIMIT_SECONDS),
+                        symbol -> new ReversiTimedAI("Timed", symbol, ReversiAISettings.DEFAULT_TIME_LIMIT_SECONDS));
+                title = "Reversi - Wijmar vs Timed";
                 break;
             default:
                 JOptionPane.showMessageDialog(this, "Mode not available for this game.");

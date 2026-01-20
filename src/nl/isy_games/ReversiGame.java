@@ -37,6 +37,10 @@ public class ReversiGame extends BoardGame {
     private static final int AI_MOVE_DELAY_MS = 100;
     private long aiTotalMoveTimeNanos = 0L;
     private int aiMoveCount = 0;
+    private int wijmarWins = 0;
+    private int wijmarDraws = 0;
+    private int wijmarLosses = 0;
+    private String wijmarSymbol = null;
 
     public ReversiGame(GameClient client, boolean myTurnFirst) {
         this(client, myTurnFirst, false, false);
@@ -85,6 +89,7 @@ public class ReversiGame extends BoardGame {
         }
 
         initializeAiPlayers();
+        initWijmarTracking();
         setPiece();
         buildBoard();
         setupInitialPieces();
@@ -114,6 +119,15 @@ public class ReversiGame extends BoardGame {
 
         localAI = localAiFactory != null ? localAiFactory.apply(mySymbol) : null;
         opponentAI = opponentAiFactory != null ? opponentAiFactory.apply(opponentSymbol) : null;
+    }
+
+    private void initWijmarTracking() {
+        if (!isWijmarVsTimedMode()) return;
+        if (localAI instanceof ReversiWijmarUltimateAI) {
+            wijmarSymbol = mySymbol;
+        } else if (opponentAI instanceof ReversiWijmarUltimateAI) {
+            wijmarSymbol = opponentSymbol;
+        }
     }
 
     private void printFirstPlayer() {
@@ -602,10 +616,37 @@ public class ReversiGame extends BoardGame {
         return count;
     }
 
+    private void updateWijmarTotals() {
+        if (wijmarSymbol == null) return;
+        String opponent = "X".equals(wijmarSymbol) ? "O" : "X";
+        int wijmarCount = countPieces(wijmarSymbol);
+        int opponentCount = countPieces(opponent);
+
+        if (wijmarCount > opponentCount) {
+            wijmarWins++;
+        } else if (wijmarCount < opponentCount) {
+            wijmarLosses++;
+        } else {
+            wijmarDraws++;
+        }
+    }
+
+    private void printWijmarTotals() {
+        System.out.println("Wijmar totals -> wins: " + wijmarWins
+                + ", draws: " + wijmarDraws
+                + ", losses: " + wijmarLosses);
+    }
+
     private void handleGameOver(String message) {
         if (gameOver) return;
         gameOver = true;
         printAverageAiMoveTime();
+        if (isWijmarVsTimedMode()) {
+            updateWijmarTotals();
+            printWijmarTotals();
+            scheduleOnEDT(AI_MOVE_DELAY_MS, this::replayWijmarVsTimedGame);
+            return;
+        }
         showGameOverDialog(message);
         closeCallback.run();
     }
@@ -628,6 +669,16 @@ public class ReversiGame extends BoardGame {
                 && opponentAI instanceof ReversiFixedDepthAI;
     }
 
+    private boolean isWijmarVsTimedMode() {
+        return client == null
+                && aiControlsLocal
+                && aiOpponentMode
+                && localAI != null
+                && opponentAI != null
+                && ((localAI instanceof ReversiWijmarUltimateAI && opponentAI instanceof ReversiTimedAI)
+                || (localAI instanceof ReversiTimedAI && opponentAI instanceof ReversiWijmarUltimateAI));
+    }
+
     private void replayAIVsRandomGame() {
         resetBoardState();
         triggerLocalAIMoveIfNeeded();
@@ -637,6 +688,14 @@ public class ReversiGame extends BoardGame {
     }
 
     private void replayTimedVsFixedGame() {
+        resetBoardState();
+        triggerLocalAIMoveIfNeeded();
+        if (isOpponentAITurn()) {
+            scheduleOpponentAIMove();
+        }
+    }
+
+    private void replayWijmarVsTimedGame() {
         resetBoardState();
         triggerLocalAIMoveIfNeeded();
         if (isOpponentAITurn()) {
