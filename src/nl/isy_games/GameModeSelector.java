@@ -18,24 +18,20 @@ public class GameModeSelector extends JFrame {
                 && (gameName.equalsIgnoreCase("reversi") || gameName.equalsIgnoreCase("othello"));
 
         setTitle("Select Game Mode");
-        setSize(300, isReversi ? 270 : 190);
-        setLayout(new GridLayout(isReversi ? 6 : 4, 1, 5, 5));
+        setSize(300, isReversi ? 230 : 190);
+        setLayout(new GridLayout(isReversi ? 5 : 4, 1, 5, 5));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
         JButton vsPlayerBtn = new JButton("Spelen tegen speler (Server)");
         JButton vsAIBtn = new JButton("Spelen tegen AI (Client)");
         JButton vsRandomAIBtn = new JButton("AI vs Random");
-        JButton vsTimedVsFixedBtn = isReversi ? new JButton("Timed vs Fixed (AI)") : null;
-        JButton vsWijmarTimedBtn = isReversi ? new JButton("Wijmar vs Timed (AI)") : null;
+        JButton vsWijmarVsFixedBtn = isReversi ? new JButton("Wijmar vs Fixed (AI)") : null;
         add(vsPlayerBtn);
         add(vsAIBtn);
         add(vsRandomAIBtn);
-        if (vsTimedVsFixedBtn != null) {
-            add(vsTimedVsFixedBtn);
-        }
-        if (vsWijmarTimedBtn != null) {
-            add(vsWijmarTimedBtn);
+        if (vsWijmarVsFixedBtn != null) {
+            add(vsWijmarVsFixedBtn);
         }
 
         statusLabel = new JLabel(" ", SwingConstants.CENTER);
@@ -44,11 +40,8 @@ public class GameModeSelector extends JFrame {
         vsPlayerBtn.addActionListener(e -> showRandomOrFindMenu());
         vsAIBtn.addActionListener(e -> startAIMode());
         vsRandomAIBtn.addActionListener(e -> startAIVsRandomMode());
-        if (vsTimedVsFixedBtn != null) {
-            vsTimedVsFixedBtn.addActionListener(e -> startTimedVsFixedMode());
-        }
-        if (vsWijmarTimedBtn != null) {
-            vsWijmarTimedBtn.addActionListener(e -> startWijmarVsTimedMode());
+        if (vsWijmarVsFixedBtn != null) {
+            vsWijmarVsFixedBtn.addActionListener(e -> startWijmarVsFixedMode());
         }
 
         setVisible(true);
@@ -122,38 +115,7 @@ public class GameModeSelector extends JFrame {
         dispose();
     }
 
-    private void startTimedVsFixedMode() {
-        String type = gameName == null ? "tic-tac-toe" : gameName;
-
-        BoardGame board;
-        String title;
-        switch (type.toLowerCase()) {
-            case "reversi":
-            case "othello":
-                boolean timedStarts = Math.random() < 0.5;
-                board = new ReversiGame(null, timedStarts,
-                        symbol -> new ReversiTimedAI("Timed", symbol, ReversiAISettings.DEFAULT_TIME_LIMIT_SECONDS),
-                        symbol -> new ReversiFixedDepthAI("Fixed", symbol, ReversiAISettings.DEFAULT_FIXED_DEPTH));
-                title = "Reversi - Timed vs Fixed";
-                break;
-            default:
-                JOptionPane.showMessageDialog(this, "Mode not available for this game.");
-                return;
-        }
-
-        JFrame frame = new JFrame(title);
-        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        frame.setContentPane(board);
-        frame.pack();
-        frame.setLocationRelativeTo(this);
-        frame.setVisible(true);
-
-        board.setCloseCallback(() -> SwingUtilities.invokeLater(frame::dispose));
-
-        dispose();
-    }
-
-    private void startWijmarVsTimedMode() {
+    private void startWijmarVsFixedMode() {
         String type = gameName == null ? "tic-tac-toe" : gameName;
 
         BoardGame board;
@@ -164,8 +126,8 @@ public class GameModeSelector extends JFrame {
                 boolean wijmarStarts = Math.random() < 0.5;
                 board = new ReversiGame(null, wijmarStarts,
                         symbol -> new ReversiWijmarUltimateAI("Wijmar", symbol, ReversiAISettings.DEFAULT_TIME_LIMIT_SECONDS),
-                        symbol -> new ReversiTimedAI("Timed", symbol, ReversiAISettings.DEFAULT_TIME_LIMIT_SECONDS));
-                title = "Reversi - Wijmar vs Timed";
+                        symbol -> new ReversiFixedDepthAI("Fixed", symbol, ReversiAISettings.DEFAULT_FIXED_DEPTH));
+                title = "Reversi - Wijmar vs Fixed";
                 break;
             default:
                 JOptionPane.showMessageDialog(this, "Mode not available for this game.");
@@ -183,7 +145,6 @@ public class GameModeSelector extends JFrame {
 
         dispose();
     }
-
 
     private void showRandomOrFindMenu() {
         JFrame selectFrame = new JFrame("Choose Match Type");
