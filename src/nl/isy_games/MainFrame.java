@@ -287,6 +287,8 @@ public class MainFrame extends JFrame {
                 ReversiAISettings.setAiType(ReversiAISettings.AIType.TIMED);
             }
 
+            SwingUtilities.updateComponentTreeUI(this);
+
             JOptionPane.showMessageDialog(this, "Settings saved.", "Settings",
                     JOptionPane.INFORMATION_MESSAGE);
         });
@@ -297,6 +299,24 @@ public class MainFrame extends JFrame {
         settingsPanel.add(Box.createVerticalStrut(8));
         settingsPanel.add(timedHint);
         settingsPanel.add(Box.createVerticalStrut(15));
+
+
+        settingsPanel.add(Box.createVerticalStrut(20));
+
+        JLabel colorsTitle = new JLabel("Colors");
+        colorsTitle.setForeground(Color.WHITE);
+        colorsTitle.setFont(new Font("Arial", Font.BOLD, 18));
+        settingsPanel.add(colorsTitle);
+
+        settingsPanel.add(Box.createVerticalStrut(10));
+
+        settingsPanel.add(createColorPicker(ReversiUISettings.ColorRole.PLAYER_PIECE));
+        settingsPanel.add(createColorPicker(ReversiUISettings.ColorRole.OPPONENT_PIECE));
+        settingsPanel.add(createColorPicker(ReversiUISettings.ColorRole.LEGAL_MOVE));
+        settingsPanel.add(createColorPicker(ReversiUISettings.ColorRole.BUTTON));
+
+        settingsPanel.add(Box.createVerticalStrut(20));
+
         settingsPanel.add(saveButton);
 
         mainPanel.add(settingsPanel, "settings");
@@ -1123,6 +1143,71 @@ public class MainFrame extends JFrame {
         });
 
         return button;
+    }
+
+    private JPanel createColorPicker(ReversiUISettings.ColorRole role) {
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        row.setBackground(new Color(28, 28, 30));
+
+        JLabel label = new JLabel(formatRoleName(role));
+        label.setForeground(Color.WHITE);
+        label.setPreferredSize(new Dimension(140, 24));
+        row.add(label);
+
+        Color[] options =
+                (role == ReversiUISettings.ColorRole.PLAYER_PIECE
+                        || role == ReversiUISettings.ColorRole.OPPONENT_PIECE)
+                        ? ReversiUISettings.PIECE_COLORS
+                        : ReversiUISettings.UI_COLORS;
+
+        for (Color c : options) {
+            JButton btn = new JButton();
+            btn.setPreferredSize(new Dimension(28, 28));
+            btn.setBackground(c);
+            btn.setFocusPainted(false);
+            btn.setBorder(BorderFactory.createLineBorder(Color.WHITE));
+
+            btn.setEnabled(
+                    !ReversiUISettings.isColorUsed(c, role)
+                            || ReversiUISettings.getColor(role).equals(c)
+            );
+
+            btn.addActionListener(e -> {
+                ReversiUISettings.setColor(role, c);
+                openSettingsPage();
+            });
+            row.add(btn);
+        }
+        return row;
+    }
+
+    private String formatRoleName(ReversiUISettings.ColorRole role) {
+        return switch (role) {
+            case PLAYER_PIECE -> "Player piece";
+            case OPPONENT_PIECE -> "Opponent piece";
+            case LEGAL_MOVE -> "Legal move";
+            case BUTTON -> "Buttons";
+        };
+    }
+
+
+    private static class ColorCellRenderer extends JLabel
+            implements ListCellRenderer<Color> {
+
+        @Override
+        public Component getListCellRendererComponent(
+                JList<? extends Color> list,
+                Color value,
+                int index,
+                boolean isSelected,
+                boolean cellHasFocus) {
+
+            setOpaque(true);
+            setBackground(value);
+            setPreferredSize(new Dimension(60, 20));
+            setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
+            return this;
+        }
     }
 
     public JPanel getMainPanel() {

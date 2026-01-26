@@ -137,7 +137,7 @@ public class ReversiGame extends BoardGame {
                         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
                         g2.setColor(getBackground());
-                        g2.fillRect(0, 0, getWidth(), getHeight());
+                        g2.fillRoundRect(0, 0, getWidth(), getHeight(), 30, 30);
 
                         // Draw game pieces
                         String val = board[finalR][finalC];
@@ -146,7 +146,12 @@ public class ReversiGame extends BoardGame {
                             int diameter = Math.min(getWidth(), getHeight()) - padding * 2;
                             int x = (getWidth() - diameter) / 2;
                             int y = (getHeight() - diameter) / 2;
-                            g2.setColor(val.equals("X") ? Color.BLACK : Color.WHITE);
+                            g2.setColor(
+                                    val.equals(mySymbol)
+                                            ? ReversiUISettings.getColor(ReversiUISettings.ColorRole.PLAYER_PIECE)
+                                            : ReversiUISettings.getColor(ReversiUISettings.ColorRole.OPPONENT_PIECE)
+                            );
+
                             g2.fillOval(x, y, diameter, diameter);
                         }
 
@@ -156,8 +161,9 @@ public class ReversiGame extends BoardGame {
 
                 btn.setPreferredSize(new Dimension(cellSize, cellSize));
                 btn.setFocusPainted(false);
-                btn.setOpaque(true);
-                btn.setBorder(BorderFactory.createLineBorder(new Color(20,20,20)));
+                btn.setOpaque(false);
+                btn.setBorder(BorderFactory.createEmptyBorder());
+                btn.setContentAreaFilled(false);
 
                 final int rr = r;
                 final int cc = c;
@@ -232,7 +238,8 @@ public class ReversiGame extends BoardGame {
         for (int r = 0; r < 8; r++) {
             for (int c = 0; c < 8; c++) {
                 if (!isCellEmpty(r, c)) {
-                    cells[r][c].setBackground(new Color(34,139,34)); // board color
+                    cells[r][c].setBackground(
+                            ReversiUISettings.getColor(ReversiUISettings.ColorRole.BUTTON)); // board color
                     continue;
                 }
 
@@ -246,8 +253,8 @@ public class ReversiGame extends BoardGame {
 
                 cells[r][c].setBackground(
                         isLegal && (currentTurn == Turn.LOCAL || currentTurn == Turn.PLAYER)
-                                ? Color.GREEN
-                                : Color.GRAY
+                                ? ReversiUISettings.getColor(ReversiUISettings.ColorRole.LEGAL_MOVE)
+                                : ReversiUISettings.getColor(ReversiUISettings.ColorRole.BUTTON)
                 );
             }
         }
