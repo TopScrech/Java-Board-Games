@@ -87,7 +87,7 @@ public class GameModeSelector extends JFrame {
         switch (type.toLowerCase()) {
             case "tic-tac-toe":
                 board = new TicTacToeGame(null, true,
-                        symbol -> new AI("Bot", symbol),
+                        symbol -> new TicTacToeMinimaxAI("Bot", symbol),
                         symbol -> new TicTacToeRandomAI("Random", symbol));
                 title = "Tic-Tac-Toe - AI vs Random";
                 break;

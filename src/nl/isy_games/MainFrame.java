@@ -378,7 +378,7 @@ public class MainFrame extends JFrame {
             loginButton.setEnabled(false);
 
             try {
-                client = new GameClient("5.83.140.43", 7789, playerName);
+                client = new GameClient("172.201.112.199", 7789, playerName);
                 new Thread(client::startListening).start();
                 client.login();
 
@@ -1075,7 +1075,7 @@ public class MainFrame extends JFrame {
         switch (gameName.toLowerCase()) {
             case "tic-tac-toe":
                 gamePanel = new TicTacToeGame(null, true,
-                        symbol -> new AI("Bot", symbol),
+                        symbol -> new TicTacToeMinimaxAI("Bot", symbol),
                         symbol -> new TicTacToeRandomAI("Random", symbol));
                 break;
             case "reversi":

@@ -3,7 +3,7 @@ package nl.isy_games;
 import java.util.ArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class ReversiAI {
+public class ReversiAI implements GameAI<ReversiGame> {
     private final String name;
     private final String symbol;
 
@@ -12,6 +12,7 @@ public class ReversiAI {
         this.symbol = symbol.toUpperCase();
     }
 
+    @Override
     public int[] chooseMove(ReversiGame board) {
         ArrayList<int[]> legalMoves = board.getLegalMovesFor(symbol);
         if (legalMoves.isEmpty()) return null;

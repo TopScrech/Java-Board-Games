@@ -73,10 +73,10 @@ public class TicTacToeGame extends BoardGame {
         this.opponentAiFactory = opponentAiFactory;
 
         if (this.aiControlsLocal && this.localAiFactory == null) {
-            this.localAiFactory = symbol -> new AI("Bot", symbol);
+            this.localAiFactory = symbol -> new TicTacToeMinimaxAI("Bot", symbol);
         }
         if (this.aiOpponentMode && this.opponentAiFactory == null) {
-            this.opponentAiFactory = symbol -> new AI("Bot", symbol);
+            this.opponentAiFactory = symbol -> new TicTacToeMinimaxAI("Bot", symbol);
         }
 
         initializeAiPlayers();
