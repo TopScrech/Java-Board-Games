@@ -12,6 +12,7 @@ abstract class ReversiSearchAI extends ReversiAI {
     protected final String opponentSymbol;
     protected final ReversiRules rules = new ReversiRules();
 
+    // Source: https://reversiworld.wordpress.com/category/weighted-square-value
     private static final int[] POSITION_WEIGHTS = {
             120, -20, 20, 5, 5, 20, -20, 120,
             -20, -40, -5, -5, -5, -5, -40, -20,

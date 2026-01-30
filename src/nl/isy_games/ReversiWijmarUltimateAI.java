@@ -5,21 +5,18 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongUnaryOperator;
 
 public class ReversiWijmarUltimateAI extends ReversiSearchAI {
 
     private final double timeLimitSeconds;
     private final boolean aiIsX;
 
-    // Use ALL available processors (incl. hyperthreads).
+    // Use all available CPU cores
     private static final int PARALLELISM =
             Math.max(1, Runtime.getRuntime().availableProcessors());
 
-    /**
-     * Dedicated pool for search.
-     * - Daemon threads so the JVM can exit cleanly.
-     * - Fixed parallelism (no oversubscription).
-     */
+    // Parallel search pool
     private static final ForkJoinPool SEARCH_POOL = new ForkJoinPool(
             PARALLELISM,
             pool -> {
@@ -33,26 +30,22 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
             false
     );
 
-    /**
-     * Stop a bit before the real limit so we can:
-     * - collect results
-     * - request cooperative stop
-     * - return a move safely within 9 seconds.
-     */
+    // Stop a bit before the real limit so we can collect results, request a stop for all threads & return a move within the time limit
     private static final long SAFETY_MARGIN_NANOS = 20_000_000L; // 20ms
 
-    /** Time check interval (every 1024 node-visits). */
+    // Time check interval, every 1024 node visits
     private static final int TIME_CHECK_MASK = 0x3FF;
 
-    /** Below this depth, run sequentially to avoid fork/join overhead. */
+    // Below this depth, run sequentially to avoid fork/join overhead
     private static final int PARALLEL_DEPTH_THRESHOLD = 3;
 
-    // Bitboard masks.
+    // Masks for board edges and corners
     private static final long NOT_A_FILE = 0xfefefefefefefefeL;
     private static final long NOT_H_FILE = 0x7f7f7f7f7f7f7f7fL;
     private static final long CORNERS =
             (1L << 0) | (1L << 7) | (1L << 56) | (1L << 63);
 
+    // Source: https://reversiworld.wordpress.com/category/weighted-square-value
     private static final int[] POSITION_WEIGHTS = {
             120, -20, 20, 5, 5, 20, -20, 120,
             -20, -40, -5, -5, -5, -5, -40, -20,
@@ -65,6 +58,20 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
     };
 
     private static final int[] MOVE_ORDER = buildMoveOrder();
+
+    // Maximum steps to expand a ray after the first shift
+    private static final int MAX_RAY_SWEEPS = 6;
+
+    private static final LongUnaryOperator[] DIRECTIONS = new LongUnaryOperator[]{
+            ReversiWijmarUltimateAI::shiftEast,
+            ReversiWijmarUltimateAI::shiftWest,
+            ReversiWijmarUltimateAI::shiftNorth,
+            ReversiWijmarUltimateAI::shiftSouth,
+            ReversiWijmarUltimateAI::shiftNE,
+            ReversiWijmarUltimateAI::shiftNW,
+            ReversiWijmarUltimateAI::shiftSE,
+            ReversiWijmarUltimateAI::shiftSW
+    };
 
     private static final ThreadLocal<int[]> NODE_COUNTER =
             ThreadLocal.withInitial(() -> new int[1]);
@@ -89,7 +96,7 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
         int bestMove = -1;
         int lastCompletedDepth = 0;
 
-        int pvMove = -1; // best move from previous completed depth (for root ordering)
+        int pvMove = -1; // best move from previous completed depth for root ordering
 
         for (int depth = 1; depth <= 64; depth++) {
             if (System.nanoTime() >= softDeadline) break;
@@ -105,11 +112,11 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
         }
 
         if (bestMove < 0) {
-            // Extremely small time limit / edge case: guarantee a legal move.
+            // Edge case: super mega ultra small time limit to guarantee a legal move
             bestMove = bestMoveDepth1Fallback(state);
         }
 
-        // Same behavior as your original: only print when we actually hit the deadline.
+        // Print only when the deadline is hit
         if (System.nanoTime() >= softDeadline) {
             System.out.println("Timed AI max completed depth: " + lastCompletedDepth);
         }
@@ -117,10 +124,7 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
         return bestMove >= 0 ? unpackMove(bestMove) : null;
     }
 
-    /**
-     * Parallel root search (best scaling) + sequential deeper recursion.
-     * Uses YBWC: evaluate first move on caller thread, then parallelize remaining.
-     */
+    // Another concurrency bullshit, dont even ask me how i got this working
     private TimedResult bestMoveTimedParallel(FastBoard board,
                                               int depth,
                                               long softDeadlineNanos,
@@ -146,15 +150,14 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
             }
         }
 
-        // bestAtRoot packs (score in high 32 bits) + (move in low 32 bits)
+        // bestAtRoot packs score in the high 32 bits and move in the low 32 bits
         AtomicLong bestAtRoot = new AtomicLong(packBest(Integer.MIN_VALUE, -1));
         SearchContext ctx = new SearchContext(softDeadlineNanos, bestAtRoot);
 
-        // --- YBWC seed: search the first move on the caller thread ---
         int firstMove = ordered[0];
         MoveScore first = scoreRootMove(board, firstMove, depth, ctx);
         if (!first.completed) {
-            // Not a completed depth => do NOT commit this iteration.
+            // Incompleted depth -> don't commit this iteration
             return new TimedResult(-1, false);
         }
         bestAtRoot.set(packBest(first.score, first.move));
@@ -205,7 +208,7 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
                 completed = false;
                 break;
             } catch (ExecutionException ee) {
-                // Treat as incomplete depth; keep engine alive.
+                // Treat as incomplete depth & keep engine alive
                 completed = false;
                 ms = null;
             }
@@ -221,14 +224,14 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
         }
 
         if (!completed) {
-            // Cooperative stop for any still-running tasks.
+            // Mutual stop for running tasks
             ctx.stop = true;
 
-            // Cancel not-yet-started tasks WITHOUT interrupting pool workers.
+            // Cancel unstarted tasks
             for (Future<?> f : futures) f.cancel(false);
 
             // Use safety margin to "join" leftover tasks so they don't keep burning CPU
-            // into the next turn. We only wait up to the hard deadline.
+            // into the next turn, we only wait up to the hard deadline
             for (Future<?> f : futures) {
                 if (f.isDone()) continue;
                 long remain = hardDeadlineNanos - System.nanoTime();
@@ -248,7 +251,7 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
             return new TimedResult(-1, false);
         }
 
-        // Completed depth => return best move found.
+        // Completed depth -> return the best move
         long bestPacked = bestAtRoot.get();
         int bestMove = (int) bestPacked;
         return new TimedResult(bestMove, true);
@@ -264,23 +267,20 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
             return new MoveScore(score, move, true);
         }
 
-        // Seed alpha with best root score so far (helps pruning across threads).
+        // Initialize alpha with the current best root score to improve cross-thread pruning
         int alpha = Math.max(Integer.MIN_VALUE / 2, ctx.rootAlpha());
         int beta = Integer.MAX_VALUE / 2;
 
-        // Use parallel minimax at all levels.
+        // Use parallel minimax at all depths
         MinimaxTask task = new MinimaxTask(this, next, false, depth - 1, alpha, beta, ctx);
         int score = task.compute();
 
-        // If stop was requested or time is up => incomplete depth.
+        // Depth is incomplete if stop was requested or time is up
         boolean completed = !ctx.stop && System.nanoTime() < ctx.deadlineNanos;
         return new MoveScore(score, move, completed);
     }
 
-    /**
-     * Sequential minimax for use below the parallel depth threshold.
-     * Uses cooperative stop and periodic time checks.
-     */
+    // Sequential minimax with mutual stop and periodic time checks
     private int minimaxSequential(FastBoard board,
                                  boolean aiTurn,
                                  int depth,
@@ -327,12 +327,7 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
         return best;
     }
 
-    /**
-     * Parallel minimax task using YBWC (Young Brothers Wait Concept) at all levels.
-     * - Searches first child sequentially to establish good bounds.
-     * - Forks remaining children in parallel.
-     * - Falls back to sequential below PARALLEL_DEPTH_THRESHOLD.
-     */
+    // Parallel minimax
     private static final class MinimaxTask extends RecursiveTask<Integer> {
         private final ReversiWijmarUltimateAI ai;
         private final FastBoard board;
@@ -366,18 +361,17 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
             if (movesMask == 0L) {
                 long oppMoves = legalMoves(oppBits, playerBits);
                 if (oppMoves == 0L) return ai.terminalScore(board);
-                // Pass turn - recurse with same board.
+                // Pass turn
                 return new MinimaxTask(ai, board, !aiTurn, depth - 1, alpha, beta, ctx).compute();
             }
 
-            // Below threshold, use sequential search to avoid fork overhead.
+            // Avoid fork overhead below depth threshold by using sequential search
             if (depth <= PARALLEL_DEPTH_THRESHOLD) {
                 return ai.minimaxSequential(board, aiTurn, depth, alpha, beta, ctx);
             }
 
             boolean maximizing = aiTurn;
 
-            // --- YBWC: Search first child sequentially to get a bound ---
             int firstMove = firstMove(movesMask);
             FastBoard firstNext = applyMove(board, firstMove, playerIsX);
             int best = new MinimaxTask(ai, firstNext, !aiTurn, depth - 1, alpha, beta, ctx).compute();
@@ -411,10 +405,10 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
                 tasks[ti++] = task;
             }
 
-            // Join all forked tasks and update best.
+            // Join all forked tasks and update best
             for (int i = 0; i < ti; i++) {
                 if (ctx.stop) {
-                    // Cancel remaining tasks.
+                    // Cancel remaining tasks
                     for (int j = i; j < ti; j++) tasks[j].cancel(false);
                     break;
                 }
@@ -425,7 +419,7 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
                     if (score > best) best = score;
                     if (best > localAlpha) localAlpha = best;
                     if (localAlpha >= localBeta) {
-                        // Cutoff: cancel remaining tasks.
+                        // Cutoff, cancel remaining tasks
                         for (int j = i + 1; j < ti; j++) tasks[j].cancel(false);
                         break;
                     }
@@ -433,7 +427,7 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
                     if (score < best) best = score;
                     if (best < localBeta) localBeta = best;
                     if (localAlpha >= localBeta) {
-                        // Cutoff: cancel remaining tasks.
+                        // Cutoff, cancel remaining tasks
                         for (int j = i + 1; j < ti; j++) tasks[j].cancel(false);
                         break;
                     }
@@ -455,7 +449,7 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
         int bestScore = Integer.MIN_VALUE;
         int bestMove = -1;
 
-        // No ordering/sorting cost here; this is an emergency fallback.
+        // Emergency fallback
         for (int move : MOVE_ORDER) {
             if ((movesMask & (1L << move)) == 0L) continue;
             FastBoard next = applyMove(board, move, aiIsX);
@@ -509,35 +503,28 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
         long aiBits = aiIsX ? board.x : board.o;
         long oppBits = aiIsX ? board.o : board.x;
 
-        int score = 0;
-        int aiCount = 0;
-        int oppCount = 0;
-
-        long bits = aiBits;
-        while (bits != 0L) {
-            int idx = Long.numberOfTrailingZeros(bits);
-            score += POSITION_WEIGHTS[idx];
-            aiCount++;
-            bits &= bits - 1;
-        }
-
-        bits = oppBits;
-        while (bits != 0L) {
-            int idx = Long.numberOfTrailingZeros(bits);
-            score -= POSITION_WEIGHTS[idx];
-            oppCount++;
-            bits &= bits - 1;
-        }
+        int score = scorePositions(aiBits) - scorePositions(oppBits);
 
         int mobility = Long.bitCount(legalMoves(aiBits, oppBits))
                 - Long.bitCount(legalMoves(oppBits, aiBits));
-        int pieceDiff = aiCount - oppCount;
+        int pieceDiff = Long.bitCount(aiBits) - Long.bitCount(oppBits);
         int cornerDiff = Long.bitCount(aiBits & CORNERS) - Long.bitCount(oppBits & CORNERS);
 
         score += mobility * 4;
         score += pieceDiff;
         score += cornerDiff * 25;
 
+        return score;
+    }
+
+    private static int scorePositions(long bits) {
+        int score = 0;
+        long remaining = bits;
+        while (remaining != 0L) {
+            int idx = Long.numberOfTrailingZeros(remaining);
+            score += POSITION_WEIGHTS[idx];
+            remaining &= remaining - 1;
+        }
         return score;
     }
 
@@ -553,142 +540,34 @@ public class ReversiWijmarUltimateAI extends ReversiSearchAI {
     private static long legalMoves(long me, long opp) {
         long empty = ~(me | opp);
         long moves = 0L;
-
-        long m = opp & shiftEast(me);
-        m |= opp & shiftEast(m);
-        m |= opp & shiftEast(m);
-        m |= opp & shiftEast(m);
-        m |= opp & shiftEast(m);
-        m |= opp & shiftEast(m);
-        moves |= empty & shiftEast(m);
-
-        m = opp & shiftWest(me);
-        m |= opp & shiftWest(m);
-        m |= opp & shiftWest(m);
-        m |= opp & shiftWest(m);
-        m |= opp & shiftWest(m);
-        m |= opp & shiftWest(m);
-        moves |= empty & shiftWest(m);
-
-        m = opp & shiftNorth(me);
-        m |= opp & shiftNorth(m);
-        m |= opp & shiftNorth(m);
-        m |= opp & shiftNorth(m);
-        m |= opp & shiftNorth(m);
-        m |= opp & shiftNorth(m);
-        moves |= empty & shiftNorth(m);
-
-        m = opp & shiftSouth(me);
-        m |= opp & shiftSouth(m);
-        m |= opp & shiftSouth(m);
-        m |= opp & shiftSouth(m);
-        m |= opp & shiftSouth(m);
-        m |= opp & shiftSouth(m);
-        moves |= empty & shiftSouth(m);
-
-        m = opp & shiftNE(me);
-        m |= opp & shiftNE(m);
-        m |= opp & shiftNE(m);
-        m |= opp & shiftNE(m);
-        m |= opp & shiftNE(m);
-        m |= opp & shiftNE(m);
-        moves |= empty & shiftNE(m);
-
-        m = opp & shiftNW(me);
-        m |= opp & shiftNW(m);
-        m |= opp & shiftNW(m);
-        m |= opp & shiftNW(m);
-        m |= opp & shiftNW(m);
-        m |= opp & shiftNW(m);
-        moves |= empty & shiftNW(m);
-
-        m = opp & shiftSE(me);
-        m |= opp & shiftSE(m);
-        m |= opp & shiftSE(m);
-        m |= opp & shiftSE(m);
-        m |= opp & shiftSE(m);
-        m |= opp & shiftSE(m);
-        moves |= empty & shiftSE(m);
-
-        m = opp & shiftSW(me);
-        m |= opp & shiftSW(m);
-        m |= opp & shiftSW(m);
-        m |= opp & shiftSW(m);
-        m |= opp & shiftSW(m);
-        m |= opp & shiftSW(m);
-        moves |= empty & shiftSW(m);
-
+        for (LongUnaryOperator shift : DIRECTIONS) {
+            moves |= legalMovesInDirection(me, opp, empty, shift);
+        }
         return moves;
+    }
+
+    private static long legalMovesInDirection(long me, long opp, long empty, LongUnaryOperator shift) {
+        long m = opp & shift.applyAsLong(me);
+        for (int i = 0; i < MAX_RAY_SWEEPS; i++) {
+            m |= opp & shift.applyAsLong(m);
+        }
+        return empty & shift.applyAsLong(m);
     }
 
     private static long flips(long moveBit, long me, long opp) {
         long flips = 0L;
-
-        long m = opp & shiftEast(moveBit);
-        m |= opp & shiftEast(m);
-        m |= opp & shiftEast(m);
-        m |= opp & shiftEast(m);
-        m |= opp & shiftEast(m);
-        m |= opp & shiftEast(m);
-        if ((shiftEast(m) & me) != 0L) flips |= m;
-
-        m = opp & shiftWest(moveBit);
-        m |= opp & shiftWest(m);
-        m |= opp & shiftWest(m);
-        m |= opp & shiftWest(m);
-        m |= opp & shiftWest(m);
-        m |= opp & shiftWest(m);
-        if ((shiftWest(m) & me) != 0L) flips |= m;
-
-        m = opp & shiftNorth(moveBit);
-        m |= opp & shiftNorth(m);
-        m |= opp & shiftNorth(m);
-        m |= opp & shiftNorth(m);
-        m |= opp & shiftNorth(m);
-        m |= opp & shiftNorth(m);
-        if ((shiftNorth(m) & me) != 0L) flips |= m;
-
-        m = opp & shiftSouth(moveBit);
-        m |= opp & shiftSouth(m);
-        m |= opp & shiftSouth(m);
-        m |= opp & shiftSouth(m);
-        m |= opp & shiftSouth(m);
-        m |= opp & shiftSouth(m);
-        if ((shiftSouth(m) & me) != 0L) flips |= m;
-
-        m = opp & shiftNE(moveBit);
-        m |= opp & shiftNE(m);
-        m |= opp & shiftNE(m);
-        m |= opp & shiftNE(m);
-        m |= opp & shiftNE(m);
-        m |= opp & shiftNE(m);
-        if ((shiftNE(m) & me) != 0L) flips |= m;
-
-        m = opp & shiftNW(moveBit);
-        m |= opp & shiftNW(m);
-        m |= opp & shiftNW(m);
-        m |= opp & shiftNW(m);
-        m |= opp & shiftNW(m);
-        m |= opp & shiftNW(m);
-        if ((shiftNW(m) & me) != 0L) flips |= m;
-
-        m = opp & shiftSE(moveBit);
-        m |= opp & shiftSE(m);
-        m |= opp & shiftSE(m);
-        m |= opp & shiftSE(m);
-        m |= opp & shiftSE(m);
-        m |= opp & shiftSE(m);
-        if ((shiftSE(m) & me) != 0L) flips |= m;
-
-        m = opp & shiftSW(moveBit);
-        m |= opp & shiftSW(m);
-        m |= opp & shiftSW(m);
-        m |= opp & shiftSW(m);
-        m |= opp & shiftSW(m);
-        m |= opp & shiftSW(m);
-        if ((shiftSW(m) & me) != 0L) flips |= m;
-
+        for (LongUnaryOperator shift : DIRECTIONS) {
+            flips |= flipsInDirection(moveBit, me, opp, shift);
+        }
         return flips;
+    }
+
+    private static long flipsInDirection(long moveBit, long me, long opp, LongUnaryOperator shift) {
+        long m = opp & shift.applyAsLong(moveBit);
+        for (int i = 0; i < MAX_RAY_SWEEPS; i++) {
+            m |= opp & shift.applyAsLong(m);
+        }
+        return (shift.applyAsLong(m) & me) != 0L ? m : 0L;
     }
 
     private static FastBoard applyMove(FastBoard board, int move, boolean playerIsX) {
