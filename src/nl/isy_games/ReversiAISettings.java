@@ -39,6 +39,6 @@ public final class ReversiAISettings {
         if (aiType == AIType.FIXED) {
             return new ReversiFixedDepthAI("Bot", symbol, fixedDepth);
         }
-        return new ReversiTimedAI("Bot", symbol, timeLimitSeconds);
+        return new ReversiWijmarUltimateAI("Bot", symbol, timeLimitSeconds);
     }
 }

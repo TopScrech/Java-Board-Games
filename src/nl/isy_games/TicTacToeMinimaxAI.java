@@ -2,12 +2,12 @@ package nl.isy_games;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-public class AI implements TicTacToeAI {
+public class TicTacToeMinimaxAI implements TicTacToeAI {
     private final String name;
     private final String symbol;
     private final String opponentSymbol;
 
-    public AI(String name, String symbol) {
+    public TicTacToeMinimaxAI(String name, String symbol) {
         this.name = name;
         this.symbol = symbol.toUpperCase();
         this.opponentSymbol = togglePlayer(this.symbol);

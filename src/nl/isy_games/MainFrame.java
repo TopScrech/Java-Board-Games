@@ -398,7 +398,7 @@ public class MainFrame extends JFrame {
             loginButton.setEnabled(false);
 
             try {
-                client = new GameClient("5.83.140.43", 7789, playerName);
+                client = new GameClient("172.201.112.199", 7789, playerName);
                 new Thread(client::startListening).start();
                 client.login();
 
@@ -875,6 +875,10 @@ public class MainFrame extends JFrame {
                 ? createGameModeCard("Timed vs Fixed",
                         "Timed AI (9s) vs fixed depth (7)", new Color(255, 152, 0), "⏱️", 260, 180)
                 : null;
+        final JPanel aiWijmarTimedCard = isReversi
+                ? createGameModeCard("Wijmar vs Timed",
+                        "Wijmar Ultimate (9s) vs Timed AI (9s)", new Color(93, 64, 55), "⚔️", 260, 180)
+                : null;
         JPanel randomCard = createGameModeCard("Random", "Quick match with random player", new Color(123, 31, 162), "🎲", 260, 180);
         JPanel findPlayerCard = createGameModeCard("Find Player", "Challenge a specific player", new Color(0, 150, 136), "🔍", 260, 180);
 
@@ -882,6 +886,9 @@ public class MainFrame extends JFrame {
         cardsPanel.add(aiRandomCard);
         if (aiTimedVsFixedCard != null) {
             cardsPanel.add(aiTimedVsFixedCard);
+        }
+        if (aiWijmarTimedCard != null) {
+            cardsPanel.add(aiWijmarTimedCard);
         }
         cardsPanel.add(randomCard);
         cardsPanel.add(findPlayerCard);
@@ -903,6 +910,9 @@ public class MainFrame extends JFrame {
             if (aiTimedVsFixedCard != null) {
                 aiTimedVsFixedCard.setVisible(true);
             }
+            if (aiWijmarTimedCard != null) {
+                aiWijmarTimedCard.setVisible(true);
+            }
             randomCard.setVisible(true);
             findPlayerCard.setVisible(true);
         });
@@ -914,6 +924,9 @@ public class MainFrame extends JFrame {
             if (aiTimedVsFixedCard != null) {
                 aiTimedVsFixedCard.setVisible(false);
             }
+            if (aiWijmarTimedCard != null) {
+                aiWijmarTimedCard.setVisible(false);
+            }
             randomCard.setVisible(true);
             findPlayerCard.setVisible(true);
         });
@@ -924,6 +937,9 @@ public class MainFrame extends JFrame {
             aiRandomCard.setVisible(true);
             if (aiTimedVsFixedCard != null) {
                 aiTimedVsFixedCard.setVisible(true);
+            }
+            if (aiWijmarTimedCard != null) {
+                aiWijmarTimedCard.setVisible(true);
             }
             randomCard.setVisible(false);
             findPlayerCard.setVisible(false);
@@ -946,6 +962,14 @@ public class MainFrame extends JFrame {
             aiTimedVsFixedCard.addMouseListener(new java.awt.event.MouseAdapter() {
                 public void mouseClicked(java.awt.event.MouseEvent evt) {
                     startTimedVsFixedMode(gameName);
+                }
+            });
+        }
+
+        if (aiWijmarTimedCard != null) {
+            aiWijmarTimedCard.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseClicked(java.awt.event.MouseEvent evt) {
+                    startWijmarVsTimedMode(gameName);
                 }
             });
         }
@@ -1071,7 +1095,7 @@ public class MainFrame extends JFrame {
         switch (gameName.toLowerCase()) {
             case "tic-tac-toe":
                 gamePanel = new TicTacToeGame(null, true,
-                        symbol -> new AI("Bot", symbol),
+                        symbol -> new TicTacToeMinimaxAI("Bot", symbol),
                         symbol -> new TicTacToeRandomAI("Random", symbol));
                 break;
             case "reversi":
@@ -1110,6 +1134,27 @@ public class MainFrame extends JFrame {
         mainPanel.add(gamePanel, "currentGame");
         showCard("currentGame");
         setHeaderLabel("Playing " + gameName + " (Timed vs Fixed)");
+    }
+
+    private void startWijmarVsTimedMode(String gameName) {
+        BoardGame gamePanel;
+        switch (gameName.toLowerCase()) {
+            case "reversi":
+            case "othello":
+                boolean wijmarStarts = Math.random() < 0.5;
+                gamePanel = new ReversiGame(null, wijmarStarts,
+                        symbol -> new ReversiWijmarUltimateAI("Wijmar", symbol, ReversiAISettings.DEFAULT_TIME_LIMIT_SECONDS),
+                        symbol -> new ReversiTimedAI("Timed", symbol, ReversiAISettings.DEFAULT_TIME_LIMIT_SECONDS));
+                break;
+            default:
+                JOptionPane.showMessageDialog(this, "Mode not available for this game.");
+                return;
+        }
+
+        inMatch = true;
+        mainPanel.add(gamePanel, "currentGame");
+        showCard("currentGame");
+        setHeaderLabel("Playing " + gameName + " (Wijmar vs Timed)");
     }
 
     public void closeGameBoard(BoardGame board) {

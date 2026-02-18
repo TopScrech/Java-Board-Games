@@ -26,12 +26,12 @@ public class GameModeSelector extends JFrame {
         JButton vsPlayerBtn = new JButton("Spelen tegen speler (Server)");
         JButton vsAIBtn = new JButton("Spelen tegen AI (Client)");
         JButton vsRandomAIBtn = new JButton("AI vs Random");
-        JButton vsTimedVsFixedBtn = isReversi ? new JButton("Timed vs Fixed (AI)") : null;
+        JButton vsWijmarVsFixedBtn = isReversi ? new JButton("Wijmar vs Fixed (AI)") : null;
         add(vsPlayerBtn);
         add(vsAIBtn);
         add(vsRandomAIBtn);
-        if (vsTimedVsFixedBtn != null) {
-            add(vsTimedVsFixedBtn);
+        if (vsWijmarVsFixedBtn != null) {
+            add(vsWijmarVsFixedBtn);
         }
 
         statusLabel = new JLabel(" ", SwingConstants.CENTER);
@@ -40,8 +40,8 @@ public class GameModeSelector extends JFrame {
         vsPlayerBtn.addActionListener(e -> showRandomOrFindMenu());
         vsAIBtn.addActionListener(e -> startAIMode());
         vsRandomAIBtn.addActionListener(e -> startAIVsRandomMode());
-        if (vsTimedVsFixedBtn != null) {
-            vsTimedVsFixedBtn.addActionListener(e -> startTimedVsFixedMode());
+        if (vsWijmarVsFixedBtn != null) {
+            vsWijmarVsFixedBtn.addActionListener(e -> startWijmarVsFixedMode());
         }
 
         setVisible(true);
@@ -87,7 +87,7 @@ public class GameModeSelector extends JFrame {
         switch (type.toLowerCase()) {
             case "tic-tac-toe":
                 board = new TicTacToeGame(null, true,
-                        symbol -> new AI("Bot", symbol),
+                        symbol -> new TicTacToeMinimaxAI("Bot", symbol),
                         symbol -> new TicTacToeRandomAI("Random", symbol));
                 title = "Tic-Tac-Toe - AI vs Random";
                 break;
@@ -115,7 +115,7 @@ public class GameModeSelector extends JFrame {
         dispose();
     }
 
-    private void startTimedVsFixedMode() {
+    private void startWijmarVsFixedMode() {
         String type = gameName == null ? "tic-tac-toe" : gameName;
 
         BoardGame board;
@@ -123,11 +123,11 @@ public class GameModeSelector extends JFrame {
         switch (type.toLowerCase()) {
             case "reversi":
             case "othello":
-                boolean timedStarts = Math.random() < 0.5;
-                board = new ReversiGame(null, timedStarts,
-                        symbol -> new ReversiTimedAI("Timed", symbol, ReversiAISettings.DEFAULT_TIME_LIMIT_SECONDS),
+                boolean wijmarStarts = Math.random() < 0.5;
+                board = new ReversiGame(null, wijmarStarts,
+                        symbol -> new ReversiWijmarUltimateAI("Wijmar", symbol, ReversiAISettings.DEFAULT_TIME_LIMIT_SECONDS),
                         symbol -> new ReversiFixedDepthAI("Fixed", symbol, ReversiAISettings.DEFAULT_FIXED_DEPTH));
-                title = "Reversi - Timed vs Fixed";
+                title = "Reversi - Wijmar vs Fixed";
                 break;
             default:
                 JOptionPane.showMessageDialog(this, "Mode not available for this game.");
@@ -145,7 +145,6 @@ public class GameModeSelector extends JFrame {
 
         dispose();
     }
-
 
     private void showRandomOrFindMenu() {
         JFrame selectFrame = new JFrame("Choose Match Type");
