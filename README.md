@@ -1,5 +1,5 @@
 # Java Board Games
-Java project for PIS-I
+Java Project for Project Intelligent Systems I & II
 
 Java SDK version: 21
 
